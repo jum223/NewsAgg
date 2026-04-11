@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const { parseNewsletterHtml } = require('./parser');
-const db = require('./database');
+const db = require('./database'); // used for token refresh persistence
 
 // GMAIL_REDIRECT_URI must match what's registered in Google Cloud Console.
 // For Railway: https://your-app.up.railway.app/auth/google/callback
@@ -67,9 +67,6 @@ async function fetchNewsletters(sources, tokens) {
     console.log(`Found ${messages.length} messages matching sources`);
 
     for (const msg of messages) {
-      // Skip already-processed messages
-      if (db.isMessageFetched(msg.id)) continue;
-
       try {
         const fullMsg = await gmail.users.messages.get({
           userId: 'me',
@@ -101,8 +98,6 @@ async function fetchNewsletters(sources, tokens) {
           date,
           ...parsed,
         });
-
-        db.markMessageFetched(msg.id);
       } catch (err) {
         console.error(`Error processing message ${msg.id}:`, err.message);
       }

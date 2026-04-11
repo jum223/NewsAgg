@@ -1,11 +1,15 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 // In production (Railway), use the mounted volume at /app/data for persistence.
 // Locally, fall back to the project root.
 const DB_PATH = process.env.NODE_ENV === 'production'
   ? '/app/data/data.db'
   : path.join(__dirname, '../data.db');
+
+// Ensure the directory exists before opening the database
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
 

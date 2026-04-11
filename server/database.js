@@ -1,7 +1,13 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database(path.join(__dirname, '../data.db'));
+// In production (Railway), use the mounted volume at /app/data for persistence.
+// Locally, fall back to the project root.
+const DB_PATH = process.env.NODE_ENV === 'production'
+  ? '/app/data/data.db'
+  : path.join(__dirname, '../data.db');
+
+const db = new Database(DB_PATH);
 
 // Enable WAL mode for better performance
 db.pragma('journal_mode = WAL');

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const cron = require('node-cron');
 const { getAuthUrl, handleCallback, fetchNewsletters } = require('./gmail');
 const { curateNewsletter } = require('./curator');
@@ -9,17 +10,26 @@ const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const IS_PROD = process.env.NODE_ENV === 'production';
 
-const FRONTEND_URL = process.env.NODE_ENV === 'production'
+const FRONTEND_URL = IS_PROD
   ? process.env.APP_URL || ''
   : 'http://localhost:5173';
 
 app.use(cors({ origin: FRONTEND_URL || true }));
 app.use(express.json());
 
+// ─── Health check (Railway uses this to know the app is alive) ──
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Serve React build in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
+const DIST_PATH = path.join(__dirname, '../client/dist');
+const DIST_INDEX = path.join(DIST_PATH, 'index.html');
+
+if (IS_PROD) {
+  app.use(express.static(DIST_PATH));
 }
 
 // ─── Auth Routes ───────────────────────────────────────────────
@@ -35,7 +45,6 @@ app.get('/auth/google/callback', async (req, res) => {
   try {
     const { code } = req.query;
     await handleCallback(code);
-    // Redirect to frontend
     res.redirect(`${FRONTEND_URL || '/'}?auth=success`);
   } catch (err) {
     console.error('Auth error:', err);
@@ -51,17 +60,14 @@ app.get('/api/auth/status', (req, res) => {
 
 // ─── Source Management Routes ──────────────────────────────────
 
-// Get all newsletter sources
 app.get('/api/sources', (req, res) => {
   const sources = db.getSources();
   res.json(sources);
 });
 
-// Add a newsletter source
 app.post('/api/sources', (req, res) => {
   const { email, name } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required' });
-
   try {
     const source = db.addSource(email, name || email);
     res.json(source);
@@ -70,7 +76,6 @@ app.post('/api/sources', (req, res) => {
   }
 });
 
-// Remove a newsletter source
 app.delete('/api/sources/:id', (req, res) => {
   db.removeSource(req.params.id);
   res.json({ success: true });
@@ -78,32 +83,24 @@ app.delete('/api/sources/:id', (req, res) => {
 
 // ─── Newsletter Routes ─────────────────────────────────────────
 
-// Fetch and curate newsletters (manual trigger)
 app.post('/api/newsletters/fetch', async (req, res) => {
   try {
     const sources = db.getSources();
     if (sources.length === 0) {
       return res.status(400).json({ error: 'No newsletter sources configured' });
     }
-
     const tokens = db.getTokens();
     if (!tokens) {
       return res.status(401).json({ error: 'Gmail not connected' });
     }
-
     console.log(`Fetching newsletters from ${sources.length} sources...`);
     const rawNewsletters = await fetchNewsletters(sources, tokens);
-
     if (rawNewsletters.length === 0) {
       return res.json({ message: 'No new newsletters found', digest: null });
     }
-
     console.log(`Found ${rawNewsletters.length} newsletters, curating...`);
     const digest = await curateNewsletter(rawNewsletters, sources);
-
-    // Save digest
     db.saveDigest(digest);
-
     res.json({ message: 'Newsletter curated successfully', digest });
   } catch (err) {
     console.error('Fetch error:', err);
@@ -111,19 +108,16 @@ app.post('/api/newsletters/fetch', async (req, res) => {
   }
 });
 
-// Get latest digest
 app.get('/api/newsletters/latest', (req, res) => {
   const digest = db.getLatestDigest();
   res.json(digest);
 });
 
-// Get all digests
 app.get('/api/newsletters/history', (req, res) => {
   const digests = db.getDigests();
   res.json(digests);
 });
 
-// Get a specific digest
 app.get('/api/newsletters/:id', (req, res) => {
   const digest = db.getDigest(req.params.id);
   if (!digest) return res.status(404).json({ error: 'Digest not found' });
@@ -131,11 +125,25 @@ app.get('/api/newsletters/:id', (req, res) => {
 });
 
 // ─── Catch-all for SPA ─────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
+// Only serve index.html if the build exists; otherwise return a useful error
+if (IS_PROD) {
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    if (fs.existsSync(DIST_INDEX)) {
+      res.sendFile(DIST_INDEX);
+    } else {
+      res.status(503).json({
+        error: 'Frontend not built. Run "npm run build" first.',
+        hint: 'Check Railway build logs for Vite errors.',
+      });
+    }
   });
 }
+
+// ─── Global error handler ──────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 // ─── Scheduled curation (daily at 7 AM) ────────────────────────
 cron.schedule('0 7 * * *', async () => {
@@ -156,6 +164,10 @@ cron.schedule('0 7 * * *', async () => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Newsletter Aggregator server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Newsletter Aggregator running on port ${PORT} [${IS_PROD ? 'production' : 'development'}]`);
+  if (IS_PROD) {
+    const distExists = fs.existsSync(DIST_INDEX);
+    console.log(`Client build: ${distExists ? 'found ✓' : 'NOT FOUND ✗ — check build logs'}`);
+  }
 });

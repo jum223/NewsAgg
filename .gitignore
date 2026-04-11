@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Environment variables (CONTAINS YOUR API KEYS — never commit!)
+.env
+
+# SQLite database (local data)
+*.db
+*.db-wal
+*.db-shm
+
+# Build output
+client/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

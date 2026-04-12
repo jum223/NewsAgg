@@ -18,6 +18,85 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+// User-scoped tables: single source of truth for CREATE (bootstrap + legacy migration).
+const USER_SCOPED_TABLES = [
+  {
+    name: 'sources',
+    sql: `CREATE TABLE sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, email)
+  );`,
+  },
+  {
+    name: 'tokens',
+    sql: `CREATE TABLE tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
+    access_token TEXT,
+    refresh_token TEXT,
+    expiry_date INTEGER,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`,
+  },
+  {
+    name: 'digests',
+    sql: `CREATE TABLE digests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    date TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`,
+  },
+  {
+    name: 'fetched_message_ids',
+    sql: `CREATE TABLE fetched_message_ids (
+    message_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (message_id, user_id)
+  );`,
+  },
+  {
+    name: 'weekly_digests',
+    sql: `CREATE TABLE weekly_digests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    week_start TEXT NOT NULL,
+    week_end TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`,
+  },
+];
+
+function userScopedBootstrapSql() {
+  return USER_SCOPED_TABLES.map(({ sql }) => sql.replace(/^CREATE TABLE /, 'CREATE TABLE IF NOT EXISTS ')).join('\n');
+}
+
+function tableHasColumn(tableName, columnName) {
+  const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  return rows.some((r) => r.name === columnName);
+}
+
+/** Recreate user-scoped tables left over from pre–multi-user schema (no user_id). */
+function migrateLegacyUserScopedTables() {
+  for (const { name, sql } of USER_SCOPED_TABLES) {
+    const cols = db.prepare(`PRAGMA table_info(${name})`).all();
+    if (cols.length === 0) continue;
+    if (tableHasColumn(name, 'user_id')) continue;
+    console.warn(
+      `[database] Migrating legacy table "${name}": missing user_id column; dropping and recreating (data in this table will be lost)`
+    );
+    db.exec(`DROP TABLE IF EXISTS ${name}`);
+    db.exec(sql);
+  }
+}
+
 // ─── Schema ────────────────────────────────────────────────────
 
 db.exec(`
@@ -41,48 +120,10 @@ db.exec(`
     used_at DATETIME
   );
 
-  CREATE TABLE IF NOT EXISTS sources (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    email TEXT NOT NULL,
-    name TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, email)
-  );
-
-  CREATE TABLE IF NOT EXISTS tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
-    access_token TEXT,
-    refresh_token TEXT,
-    expiry_date INTEGER,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS digests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    date TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS fetched_message_ids (
-    message_id TEXT NOT NULL,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (message_id, user_id)
-  );
-
-  CREATE TABLE IF NOT EXISTS weekly_digests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    week_start TEXT NOT NULL,
-    week_end TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  ${userScopedBootstrapSql()}
 `);
+
+migrateLegacyUserScopedTables();
 
 // ─── Users ────────────────────────────────────────────────────
 

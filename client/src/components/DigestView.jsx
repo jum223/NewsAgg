@@ -24,13 +24,39 @@ const categoryColors = {
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  // Parse as local date to avoid UTC midnight off-by-one issue
+  const clean = dateStr.split('T')[0]; // handle ISO strings too
+  const [y, m, d] = clean.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+}
+
+function VisualCard({ visual }) {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const hasImage = visual.imageUrl && !imgFailed;
+  return (
+    <div className={`visual-card ${!hasImage ? 'visual-card-no-img' : ''}`}>
+      {hasImage && (
+        <img
+          src={visual.imageUrl}
+          alt={visual.description}
+          className="visual-img"
+          onError={() => setImgFailed(true)}
+        />
+      )}
+      {!hasImage && (
+        <div className="visual-placeholder">
+          <Image size={28} />
+        </div>
+      )}
+      <div className="visual-body">
+        <p className="visual-desc">{visual.description}</p>
+        <span className="visual-source">{visual.source}</span>
+      </div>
+    </div>
+  );
 }
 
 export default function DigestView({ digest, onFetch, fetching, hasSources }) {
@@ -132,18 +158,7 @@ export default function DigestView({ digest, onFetch, fetching, hasSources }) {
           </h3>
           <div className="visuals-grid">
             {visuals.map((visual, i) => (
-              <div key={i} className="visual-card">
-                {visual.imageUrl && (
-                  <img
-                    src={visual.imageUrl}
-                    alt={visual.description}
-                    className="visual-img"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                )}
-                <p className="visual-desc">{visual.description}</p>
-                <span className="visual-source">{visual.source}</span>
-              </div>
+              <VisualCard key={i} visual={visual} />
             ))}
           </div>
         </section>

@@ -80,7 +80,8 @@ function getTokens() {
 // ─── Digests ───────────────────────────────────────────────────
 
 function saveDigest(digest) {
-  const date = new Date().toISOString().split('T')[0];
+  // Store date in Eastern time so the label matches the user's day
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // en-CA gives YYYY-MM-DD
   db.prepare('INSERT INTO digests (date, content) VALUES (?, ?)').run(date, JSON.stringify(digest));
 }
 

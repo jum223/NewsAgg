@@ -145,8 +145,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ─── Scheduled curation (daily at 7 AM) ────────────────────────
-cron.schedule('0 7 * * *', async () => {
+// ─── Scheduled curation (daily at 8 PM Eastern) ───────────────
+cron.schedule('0 20 * * *', async () => {
   console.log('Running scheduled newsletter curation...');
   try {
     const sources = db.getSources();
@@ -162,7 +162,7 @@ cron.schedule('0 7 * * *', async () => {
   } catch (err) {
     console.error('Scheduled curation failed:', err);
   }
-});
+}, { timezone: 'America/New_York' });
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Newsletter Aggregator running on port ${PORT} [${IS_PROD ? 'production' : 'development'}]`);

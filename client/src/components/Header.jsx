@@ -1,5 +1,5 @@
 import React from 'react';
-import { Newspaper, Mail, Clock, Settings, RefreshCw, Zap } from 'lucide-react';
+import { Newspaper, Mail, Clock, Settings, RefreshCw, Zap, Trophy } from 'lucide-react';
 
 export default function Header({ view, setView, authenticated, sourceCount, onFetch, fetching }) {
   return (
@@ -28,6 +28,13 @@ export default function Header({ view, setView, authenticated, sourceCount, onFe
             <Mail size={16} />
             <span>Sources</span>
             {sourceCount > 0 && <span className="badge">{sourceCount}</span>}
+          </button>
+          <button
+            className={`nav-btn ${view === 'weekly' ? 'active' : ''}`}
+            onClick={() => setView('weekly')}
+          >
+            <Trophy size={16} />
+            <span>Weekly</span>
           </button>
           <button
             className={`nav-btn ${view === 'history' ? 'active' : ''}`}

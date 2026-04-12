@@ -6,7 +6,8 @@ const fs = require('fs');
 const cron = require('node-cron');
 const { getAuthUrl, handleCallback, fetchNewsletters } = require('./gmail');
 const { curateNewsletter } = require('./curator');
-const { sendDigestEmail } = require('./emailer');
+const { curateWeeklyDigest } = require('./weeklyCurator');
+const { sendDigestEmail, sendWeeklyDigestEmail } = require('./emailer');
 const db = require('./database');
 
 const app = express();
@@ -127,6 +128,43 @@ app.get('/api/newsletters/:id', (req, res) => {
   res.json(digest);
 });
 
+// ─── Weekly Digest Routes ──────────────────────────────────────
+
+// Manual trigger
+app.post('/api/weekly/generate', async (req, res) => {
+  try {
+    const dailyDigests = db.getRecentDailyDigests(7);
+    if (dailyDigests.length === 0) {
+      return res.status(400).json({ error: 'No daily digests found from the past 7 days' });
+    }
+    const result = await curateWeeklyDigest(dailyDigests);
+    if (!result) {
+      return res.status(500).json({ error: 'Weekly curation failed' });
+    }
+    db.saveWeeklyDigest(result.weekStart, result.weekEnd, result.digest);
+    sendWeeklyDigestEmail(result.digest).catch(err => console.error('Weekly email error:', err));
+    res.json({ message: 'Weekly digest generated', digest: result.digest });
+  } catch (err) {
+    console.error('Weekly generate error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/weekly/latest', (req, res) => {
+  const digest = db.getLatestWeeklyDigest();
+  res.json(digest);
+});
+
+app.get('/api/weekly/history', (req, res) => {
+  res.json(db.getWeeklyDigests());
+});
+
+app.get('/api/weekly/:id', (req, res) => {
+  const digest = db.getWeeklyDigest(req.params.id);
+  if (!digest) return res.status(404).json({ error: 'Not found' });
+  res.json(digest);
+});
+
 // ─── Catch-all for SPA ─────────────────────────────────────────
 // Only serve index.html if the build exists; otherwise return a useful error
 if (IS_PROD) {
@@ -165,6 +203,26 @@ cron.schedule('0 20 * * *', async () => {
     }
   } catch (err) {
     console.error('Scheduled curation failed:', err);
+  }
+}, { timezone: 'America/New_York' });
+
+// ─── Weekly summary (Sundays at 9 AM Eastern) ─────────────────
+cron.schedule('0 9 * * 0', async () => {
+  console.log('Running weekly digest curation...');
+  try {
+    const dailyDigests = db.getRecentDailyDigests(7);
+    if (dailyDigests.length === 0) {
+      console.log('No daily digests found for weekly summary');
+      return;
+    }
+    const result = await curateWeeklyDigest(dailyDigests);
+    if (result) {
+      db.saveWeeklyDigest(result.weekStart, result.weekEnd, result.digest);
+      await sendWeeklyDigestEmail(result.digest);
+      console.log('Weekly digest created and emailed successfully');
+    }
+  } catch (err) {
+    console.error('Weekly curation failed:', err);
   }
 }, { timezone: 'America/New_York' });
 

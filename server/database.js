@@ -45,6 +45,14 @@ db.exec(`
     message_id TEXT PRIMARY KEY,
     fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS weekly_digests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_start TEXT NOT NULL,
+    week_end TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // ─── Sources ───────────────────────────────────────────────────
@@ -101,6 +109,43 @@ function getDigest(id) {
   return { ...row, content: JSON.parse(row.content) };
 }
 
+// ─── Weekly Digests ────────────────────────────────────────────
+
+function getRecentDailyDigests(days = 7) {
+  const cutoff = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  })();
+  return db.prepare(
+    'SELECT content FROM digests WHERE date >= ? ORDER BY date ASC'
+  ).all(cutoff).map(r => JSON.parse(r.content));
+}
+
+function saveWeeklyDigest(weekStart, weekEnd, digest) {
+  db.prepare(
+    'INSERT INTO weekly_digests (week_start, week_end, content) VALUES (?, ?, ?)'
+  ).run(weekStart, weekEnd, JSON.stringify(digest));
+}
+
+function getLatestWeeklyDigest() {
+  const row = db.prepare('SELECT * FROM weekly_digests ORDER BY created_at DESC LIMIT 1').get();
+  if (!row) return null;
+  return { ...row, content: JSON.parse(row.content) };
+}
+
+function getWeeklyDigests() {
+  return db.prepare(
+    'SELECT id, week_start, week_end, created_at FROM weekly_digests ORDER BY created_at DESC LIMIT 20'
+  ).all();
+}
+
+function getWeeklyDigest(id) {
+  const row = db.prepare('SELECT * FROM weekly_digests WHERE id = ?').get(id);
+  if (!row) return null;
+  return { ...row, content: JSON.parse(row.content) };
+}
+
 // ─── Message tracking (avoid re-processing) ────────────────────
 
 function isMessageFetched(messageId) {
@@ -115,5 +160,6 @@ module.exports = {
   getSources, addSource, removeSource,
   saveTokens, getTokens,
   saveDigest, getLatestDigest, getDigests, getDigest,
+  getRecentDailyDigests, saveWeeklyDigest, getLatestWeeklyDigest, getWeeklyDigests, getWeeklyDigest,
   isMessageFetched, markMessageFetched,
 };

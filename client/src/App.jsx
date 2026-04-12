@@ -3,6 +3,7 @@ import Header from './components/Header';
 import SourceManager from './components/SourceManager';
 import DigestView from './components/DigestView';
 import DigestHistory from './components/DigestHistory';
+import WeeklyDigestView from './components/WeeklyDigestView';
 import SetupGuide from './components/SetupGuide';
 
 // In production, API is served from the same origin. In dev, Vite proxies to localhost:3001.
@@ -165,6 +166,7 @@ export default function App() {
         )}
 
         {view === 'history' && <DigestHistory />}
+        {view === 'weekly' && <WeeklyDigestView />}
       </main>
     </div>
   );

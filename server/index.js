@@ -6,6 +6,7 @@ const fs = require('fs');
 const cron = require('node-cron');
 const { getAuthUrl, handleCallback, fetchNewsletters } = require('./gmail');
 const { curateNewsletter } = require('./curator');
+const { sendDigestEmail } = require('./emailer');
 const db = require('./database');
 
 const app = express();
@@ -101,6 +102,8 @@ app.post('/api/newsletters/fetch', async (req, res) => {
     console.log(`Found ${rawNewsletters.length} newsletters, curating...`);
     const digest = await curateNewsletter(rawNewsletters, sources);
     db.saveDigest(digest);
+    // Send email in background (don't await — don't block the API response)
+    sendDigestEmail(digest).catch(err => console.error('Email error:', err));
     res.json({ message: 'Newsletter curated successfully', digest });
   } catch (err) {
     console.error('Fetch error:', err);
@@ -156,7 +159,8 @@ cron.schedule('0 20 * * *', async () => {
       if (rawNewsletters.length > 0) {
         const digest = await curateNewsletter(rawNewsletters, sources);
         db.saveDigest(digest);
-        console.log('Daily digest created successfully');
+        await sendDigestEmail(digest);
+        console.log('Daily digest created and emailed successfully');
       }
     }
   } catch (err) {

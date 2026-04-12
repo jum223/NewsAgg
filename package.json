@@ -22,6 +22,7 @@
     "cheerio": "^1.0.0-rc.12",
     "node-cron": "^3.0.3",
     "better-sqlite3": "^11.0.0",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "resend": "^4.0.0"
   }
 }

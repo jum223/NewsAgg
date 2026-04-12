@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const { parseNewsletterHtml } = require('./parser');
-const db = require('./database'); // used for token refresh persistence
+const db = require('./database');
 
 // GMAIL_REDIRECT_URI must match what's registered in Google Cloud Console.
 // For Railway: https://your-app.up.railway.app/auth/google/callback
@@ -11,43 +11,82 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GMAIL_REDIRECT_URI
 );
 
-const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+// Combined scopes: identity (login) + Gmail reading
+const SCOPES = [
+  'openid',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/gmail.readonly',
+];
 
-function getAuthUrl() {
+/**
+ * Generate auth URL for Google Sign-In + Gmail access.
+ * @param {string} stateParam — JSON-encoded state (e.g. { inviteCode: 'ABC123' })
+ */
+function getAuthUrl(stateParam) {
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
     prompt: 'consent',
+    state: stateParam || '',
   });
 }
 
+/**
+ * Handle the OAuth callback.
+ * Returns { tokens, userInfo } where userInfo has { googleId, email, name, picture }.
+ */
 async function handleCallback(code) {
   const { tokens } = await oauth2Client.getToken(code);
   oauth2Client.setCredentials(tokens);
-  db.saveTokens(tokens);
-  return tokens;
+
+  // Fetch user profile from Google
+  const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+  const { data: profile } = await oauth2.userinfo.get();
+
+  return {
+    tokens,
+    userInfo: {
+      googleId: profile.id,
+      email: profile.email,
+      name: profile.name,
+      picture: profile.picture,
+    },
+  };
 }
 
-function setCredentials(tokens) {
-  oauth2Client.setCredentials({
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    expiry_date: tokens.expiry_date,
+/**
+ * Set up credentials for a specific user's token set.
+ * Returns a configured OAuth2 client for that user.
+ */
+function createUserOAuthClient(userTokens) {
+  const client = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    process.env.GMAIL_REDIRECT_URI
+  );
+
+  client.setCredentials({
+    access_token: userTokens.access_token,
+    refresh_token: userTokens.refresh_token,
+    expiry_date: userTokens.expiry_date,
   });
 
-  // Listen for token refresh events
-  oauth2Client.on('tokens', (newTokens) => {
-    db.saveTokens({
+  // Listen for token refresh events — persist updated tokens for this user
+  client.on('tokens', (newTokens) => {
+    db.saveTokens(userTokens.user_id, {
       access_token: newTokens.access_token,
-      refresh_token: newTokens.refresh_token || tokens.refresh_token,
+      refresh_token: newTokens.refresh_token || userTokens.refresh_token,
       expiry_date: newTokens.expiry_date,
     });
   });
+
+  return client;
 }
 
-async function fetchNewsletters(sources, tokens) {
-  setCredentials(tokens);
-  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+async function fetchNewsletters(sources, userTokens) {
+  const authClient = createUserOAuthClient(userTokens);
+  const gmail = google.gmail({ version: 'v1', auth: authClient });
 
   const newsletters = [];
 

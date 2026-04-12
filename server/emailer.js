@@ -194,13 +194,19 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-async function sendDigestEmail(digest) {
+/**
+ * Send daily digest email.
+ * @param {object} digest — the curated digest content
+ * @param {string} recipientEmail — the user's email address
+ */
+async function sendDigestEmail(digest, recipientEmail) {
   if (!process.env.RESEND_API_KEY) {
     console.log('Email skipped: RESEND_API_KEY not set');
     return;
   }
-  if (!process.env.DIGEST_EMAIL) {
-    console.log('Email skipped: DIGEST_EMAIL not set');
+  const toEmail = recipientEmail || process.env.DIGEST_EMAIL;
+  if (!toEmail) {
+    console.log('Email skipped: no recipient email');
     return;
   }
 
@@ -211,11 +217,11 @@ async function sendDigestEmail(digest) {
   try {
     const result = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'The Digestino <onboarding@resend.dev>',
-      to: process.env.DIGEST_EMAIL,
+      to: toEmail,
       subject: `The Digestino — ${dateLabel}`,
       html,
     });
-    console.log('Digest email sent:', result.data?.id || 'ok');
+    console.log(`Digest email sent to ${toEmail}:`, result.data?.id || 'ok');
   } catch (err) {
     console.error('Failed to send digest email:', err.message);
   }
@@ -312,9 +318,19 @@ function buildWeeklyEmailHtml(digest, appUrl) {
 </html>`;
 }
 
-async function sendWeeklyDigestEmail(digest) {
-  if (!process.env.RESEND_API_KEY || !process.env.DIGEST_EMAIL) {
-    console.log('Weekly email skipped: missing RESEND_API_KEY or DIGEST_EMAIL');
+/**
+ * Send weekly digest email.
+ * @param {object} digest — the weekly digest content
+ * @param {string} recipientEmail — the user's email address
+ */
+async function sendWeeklyDigestEmail(digest, recipientEmail) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log('Weekly email skipped: RESEND_API_KEY not set');
+    return;
+  }
+  const toEmail = recipientEmail || process.env.DIGEST_EMAIL;
+  if (!toEmail) {
+    console.log('Weekly email skipped: no recipient email');
     return;
   }
   const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
@@ -322,11 +338,11 @@ async function sendWeeklyDigestEmail(digest) {
   try {
     const result = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'The Digestino <onboarding@resend.dev>',
-      to: process.env.DIGEST_EMAIL,
+      to: toEmail,
       subject: `The Digestino — Week in Review — ${digest.weekOf || 'This Week'}`,
       html,
     });
-    console.log('Weekly digest email sent:', result.data?.id || 'ok');
+    console.log(`Weekly digest email sent to ${toEmail}:`, result.data?.id || 'ok');
   } catch (err) {
     console.error('Failed to send weekly digest email:', err.message);
   }

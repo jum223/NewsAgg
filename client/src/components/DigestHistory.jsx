@@ -19,7 +19,6 @@ function formatDay(dateStr) {
 // Parse SQLite UTC datetime string to a Date object
 function parseUtcDatetime(str) {
   if (!str) return new Date();
-  // SQLite stores as "2026-04-12 23:30:00" in UTC
   return new Date(str.replace(' ', 'T') + 'Z');
 }
 
@@ -30,18 +29,18 @@ function formatTime(str) {
   });
 }
 
-export default function DigestHistory() {
+export default function DigestHistory({ token }) {
   const [allDigests, setAllDigests] = useState([]);
   const [loading, setLoading] = useState(true);
-  // selectedDate: the date string the user clicked (e.g. "2026-04-12")
   const [selectedDate, setSelectedDate] = useState(null);
-  // selectedId: which version is currently shown
   const [selectedId, setSelectedId] = useState(null);
   const [selectedDigest, setSelectedDigest] = useState(null);
   const [loadingDigest, setLoadingDigest] = useState(false);
 
+  const headers = { Authorization: `Bearer ${token}` };
+
   useEffect(() => {
-    fetch(`${API}/api/newsletters/history`)
+    fetch(`${API}/api/newsletters/history`, { headers })
       .then(r => r.json())
       .then(data => { setAllDigests(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -57,7 +56,7 @@ export default function DigestHistory() {
 
   const openDate = async (date) => {
     setSelectedDate(date);
-    const versions = grouped[date]; // already newest-first from the API
+    const versions = grouped[date];
     const latest = versions[0];
     setSelectedId(latest.id);
     await loadDigest(latest.id);
@@ -67,7 +66,7 @@ export default function DigestHistory() {
     setLoadingDigest(true);
     setSelectedId(id);
     try {
-      const res = await fetch(`${API}/api/newsletters/${id}`);
+      const res = await fetch(`${API}/api/newsletters/${id}`, { headers });
       const data = await res.json();
       setSelectedDigest(data);
     } catch (e) {

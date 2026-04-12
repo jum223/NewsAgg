@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Mail, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Mail } from 'lucide-react';
 
-export default function SourceManager({ sources, onAdd, onRemove, authenticated, onConnect }) {
+export default function SourceManager({ sources, onAdd, onRemove }) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -17,21 +17,6 @@ export default function SourceManager({ sources, onAdd, onRemove, authenticated,
     }
     setAdding(false);
   };
-
-  if (!authenticated) {
-    return (
-      <div className="sources-page">
-        <div className="empty-state">
-          <AlertCircle size={48} />
-          <h3>Gmail not connected</h3>
-          <p>Connect your Gmail account first to start adding newsletter sources.</p>
-          <button className="btn btn-primary" onClick={onConnect}>
-            <Mail size={16} /> Connect Gmail
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="sources-page">

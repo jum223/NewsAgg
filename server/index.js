@@ -8,6 +8,7 @@ const { getAuthUrl, handleCallback, fetchNewsletters } = require('./gmail');
 const { curateNewsletter } = require('./curator');
 const { curateWeeklyDigest } = require('./weeklyCurator');
 const { sendDigestEmail, sendWeeklyDigestEmail } = require('./emailer');
+const { signToken, requireAuth, requireAdmin } = require('./auth');
 const db = require('./database');
 
 const app = express();
@@ -34,77 +35,200 @@ if (IS_PROD) {
   app.use(express.static(DIST_PATH));
 }
 
-// ─── Auth Routes ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// AUTH ROUTES (public)
+// ═══════════════════════════════════════════════════════════════
 
-// Start Gmail OAuth flow
+// Validate an invite code (before starting OAuth)
+app.post('/api/auth/validate-invite', (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Invite code is required' });
+  const invite = db.validateInviteCode(code.toUpperCase());
+  if (!invite) return res.status(400).json({ error: 'Invalid or already used invite code' });
+  res.json({ valid: true });
+});
+
+// Start Google OAuth flow
+// Body: { inviteCode?: string } — required for new signups
+app.post('/auth/google', (req, res) => {
+  const { inviteCode } = req.body || {};
+  const state = JSON.stringify({ inviteCode: inviteCode || '' });
+  const url = getAuthUrl(state);
+  res.json({ url });
+});
+
+// Also support GET for backward compat / simple redirects
 app.get('/auth/google', (req, res) => {
-  const url = getAuthUrl();
+  const url = getAuthUrl(JSON.stringify({ inviteCode: '' }));
   res.json({ url });
 });
 
 // OAuth callback
 app.get('/auth/google/callback', async (req, res) => {
   try {
-    const { code } = req.query;
-    await handleCallback(code);
-    res.redirect(`${FRONTEND_URL || '/'}?auth=success`);
+    const { code, state } = req.query;
+    const { tokens, userInfo } = await handleCallback(code);
+
+    let parsedState = {};
+    try { parsedState = JSON.parse(state || '{}'); } catch {}
+
+    // Check if user exists
+    let user = db.findUserByGoogleId(userInfo.googleId);
+
+    if (!user) {
+      // Check if this is the very first user — they get in without an invite (bootstrap)
+      const allUsers = db.getAllUsers();
+      const isFirst = allUsers.length === 0;
+
+      const inviteCode = (parsedState.inviteCode || '').toUpperCase();
+
+      if (!isFirst) {
+        // Not the first user — require valid invite code
+        if (!inviteCode) {
+          return res.redirect(`${FRONTEND_URL || '/'}?auth=no-invite`);
+        }
+        const invite = db.validateInviteCode(inviteCode);
+        if (!invite) {
+          return res.redirect(`${FRONTEND_URL || '/'}?auth=invalid-invite`);
+        }
+      }
+
+      // Create user
+      user = db.createUser({
+        googleId: userInfo.googleId,
+        email: userInfo.email,
+        name: userInfo.name,
+        avatarUrl: userInfo.picture,
+        isAdmin: isFirst,
+      });
+
+      // Redeem the invite code if one was used
+      if (inviteCode && !isFirst) {
+        db.redeemInviteCode(inviteCode, user.id);
+      }
+      console.log(`New user signed up: ${user.email} (admin: ${isFirst})`);
+    } else {
+      // Update profile info on login
+      db.updateUser(user.id, { name: userInfo.name, avatar_url: userInfo.picture });
+    }
+
+    // Save Gmail tokens for this user
+    db.saveTokens(user.id, tokens);
+
+    // Generate JWT
+    const jwt = signToken(user);
+
+    // Redirect to frontend with the JWT
+    res.redirect(`${FRONTEND_URL || '/'}?auth=success&token=${jwt}`);
   } catch (err) {
     console.error('Auth error:', err);
     res.redirect(`${FRONTEND_URL || '/'}?auth=error`);
   }
 });
 
-// Check auth status
-app.get('/api/auth/status', (req, res) => {
-  const tokens = db.getTokens();
-  res.json({ authenticated: !!tokens });
+// Get current user info (requires auth)
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  const { id, email, name, avatar_url, daily_cron_hour, is_admin, created_at } = req.user;
+  const tokens = db.getTokens(id);
+  res.json({
+    id, email, name, avatar_url, daily_cron_hour,
+    is_admin: !!is_admin,
+    created_at,
+    gmail_connected: !!tokens,
+  });
 });
 
-// ─── Source Management Routes ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// USER SETTINGS (requires auth)
+// ═══════════════════════════════════════════════════════════════
 
-app.get('/api/sources', (req, res) => {
-  const sources = db.getSources();
+app.put('/api/settings', requireAuth, (req, res) => {
+  const { daily_cron_hour } = req.body;
+  if (daily_cron_hour !== undefined) {
+    const hour = parseInt(daily_cron_hour, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) {
+      return res.status(400).json({ error: 'Hour must be 0-23' });
+    }
+  }
+  const updated = db.updateUser(req.user.id, req.body);
+  res.json(updated);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INVITE CODES (requires auth)
+// ═══════════════════════════════════════════════════════════════
+
+// Generate a new invite code (admin only)
+app.post('/api/invites', requireAuth, requireAdmin, (req, res) => {
+  const code = db.generateInviteCode(req.user.id);
+  res.json({ code });
+});
+
+// List invite codes (admin sees all)
+app.get('/api/invites', requireAuth, requireAdmin, (req, res) => {
+  const codes = db.getInviteCodes(null); // null = admin sees all
+  res.json(codes);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
+  const users = db.getAllUsers();
+  res.json(users);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SOURCE MANAGEMENT (requires auth)
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/api/sources', requireAuth, (req, res) => {
+  const sources = db.getSources(req.user.id);
   res.json(sources);
 });
 
-app.post('/api/sources', (req, res) => {
+app.post('/api/sources', requireAuth, (req, res) => {
   const { email, name } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required' });
   try {
-    const source = db.addSource(email, name || email);
+    const source = db.addSource(req.user.id, email, name || email);
     res.json(source);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-app.delete('/api/sources/:id', (req, res) => {
-  db.removeSource(req.params.id);
+app.delete('/api/sources/:id', requireAuth, (req, res) => {
+  db.removeSource(req.user.id, req.params.id);
   res.json({ success: true });
 });
 
-// ─── Newsletter Routes ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// NEWSLETTER ROUTES (requires auth)
+// ═══════════════════════════════════════════════════════════════
 
-app.post('/api/newsletters/fetch', async (req, res) => {
+app.post('/api/newsletters/fetch', requireAuth, async (req, res) => {
   try {
-    const sources = db.getSources();
+    const userId = req.user.id;
+    const sources = db.getSources(userId);
     if (sources.length === 0) {
       return res.status(400).json({ error: 'No newsletter sources configured' });
     }
-    const tokens = db.getTokens();
+    const tokens = db.getTokens(userId);
     if (!tokens) {
       return res.status(401).json({ error: 'Gmail not connected' });
     }
-    console.log(`Fetching newsletters from ${sources.length} sources...`);
+    console.log(`[${req.user.email}] Fetching newsletters from ${sources.length} sources...`);
     const rawNewsletters = await fetchNewsletters(sources, tokens);
     if (rawNewsletters.length === 0) {
       return res.json({ message: 'No new newsletters found', digest: null });
     }
-    console.log(`Found ${rawNewsletters.length} newsletters, curating...`);
+    console.log(`[${req.user.email}] Found ${rawNewsletters.length} newsletters, curating...`);
     const digest = await curateNewsletter(rawNewsletters, sources);
-    db.saveDigest(digest);
-    // Send email in background (don't await — don't block the API response)
-    sendDigestEmail(digest).catch(err => console.error('Email error:', err));
+    db.saveDigest(userId, digest);
+    // Send email in background
+    sendDigestEmail(digest, req.user.email).catch(err => console.error('Email error:', err));
     res.json({ message: 'Newsletter curated successfully', digest });
   } catch (err) {
     console.error('Fetch error:', err);
@@ -112,28 +236,30 @@ app.post('/api/newsletters/fetch', async (req, res) => {
   }
 });
 
-app.get('/api/newsletters/latest', (req, res) => {
-  const digest = db.getLatestDigest();
+app.get('/api/newsletters/latest', requireAuth, (req, res) => {
+  const digest = db.getLatestDigest(req.user.id);
   res.json(digest);
 });
 
-app.get('/api/newsletters/history', (req, res) => {
-  const digests = db.getDigests();
+app.get('/api/newsletters/history', requireAuth, (req, res) => {
+  const digests = db.getDigests(req.user.id);
   res.json(digests);
 });
 
-app.get('/api/newsletters/:id', (req, res) => {
-  const digest = db.getDigest(req.params.id);
+app.get('/api/newsletters/:id', requireAuth, (req, res) => {
+  const digest = db.getDigest(req.user.id, req.params.id);
   if (!digest) return res.status(404).json({ error: 'Digest not found' });
   res.json(digest);
 });
 
-// ─── Weekly Digest Routes ──────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// WEEKLY DIGEST ROUTES (requires auth)
+// ═══════════════════════════════════════════════════════════════
 
-// Manual trigger
-app.post('/api/weekly/generate', async (req, res) => {
+app.post('/api/weekly/generate', requireAuth, async (req, res) => {
   try {
-    const dailyDigests = db.getRecentDailyDigests(7);
+    const userId = req.user.id;
+    const dailyDigests = db.getRecentDailyDigests(userId, 7);
     if (dailyDigests.length === 0) {
       return res.status(400).json({ error: 'No daily digests found from the past 7 days' });
     }
@@ -141,8 +267,8 @@ app.post('/api/weekly/generate', async (req, res) => {
     if (!result) {
       return res.status(500).json({ error: 'Weekly curation failed' });
     }
-    db.saveWeeklyDigest(result.weekStart, result.weekEnd, result.digest);
-    sendWeeklyDigestEmail(result.digest).catch(err => console.error('Weekly email error:', err));
+    db.saveWeeklyDigest(userId, result.weekStart, result.weekEnd, result.digest);
+    sendWeeklyDigestEmail(result.digest, req.user.email).catch(err => console.error('Weekly email error:', err));
     res.json({ message: 'Weekly digest generated', digest: result.digest });
   } catch (err) {
     console.error('Weekly generate error:', err);
@@ -150,23 +276,25 @@ app.post('/api/weekly/generate', async (req, res) => {
   }
 });
 
-app.get('/api/weekly/latest', (req, res) => {
-  const digest = db.getLatestWeeklyDigest();
+app.get('/api/weekly/latest', requireAuth, (req, res) => {
+  const digest = db.getLatestWeeklyDigest(req.user.id);
   res.json(digest);
 });
 
-app.get('/api/weekly/history', (req, res) => {
-  res.json(db.getWeeklyDigests());
+app.get('/api/weekly/history', requireAuth, (req, res) => {
+  res.json(db.getWeeklyDigests(req.user.id));
 });
 
-app.get('/api/weekly/:id', (req, res) => {
-  const digest = db.getWeeklyDigest(req.params.id);
+app.get('/api/weekly/:id', requireAuth, (req, res) => {
+  const digest = db.getWeeklyDigest(req.user.id, req.params.id);
   if (!digest) return res.status(404).json({ error: 'Not found' });
   res.json(digest);
 });
 
-// ─── Catch-all for SPA ─────────────────────────────────────────
-// Only serve index.html if the build exists; otherwise return a useful error
+// ═══════════════════════════════════════════════════════════════
+// SPA CATCH-ALL
+// ═══════════════════════════════════════════════════════════════
+
 if (IS_PROD) {
   app.get('*', (req, res) => {
     if (fs.existsSync(DIST_INDEX)) {
@@ -186,43 +314,64 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ─── Scheduled curation (daily at 8 PM Eastern) ───────────────
-cron.schedule('0 20 * * *', async () => {
-  console.log('Running scheduled newsletter curation...');
-  try {
-    const sources = db.getSources();
-    const tokens = db.getTokens();
-    if (sources.length > 0 && tokens) {
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULED CURATION — Per-user daily digests
+// Runs every hour; checks which users have that hour as their
+// preferred cron time (in Eastern Time).
+// ═══════════════════════════════════════════════════════════════
+
+cron.schedule('0 * * * *', async () => {
+  // Get current hour in Eastern Time
+  const now = new Date();
+  const etHour = parseInt(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }), 10);
+
+  const users = db.getUsersByDailyCronHour(etHour);
+  if (users.length === 0) return;
+
+  console.log(`[Cron] ${etHour}:00 ET — Running daily digest for ${users.length} user(s)`);
+
+  for (const user of users) {
+    try {
+      const sources = db.getSources(user.id);
+      const tokens = db.getTokens(user.id);
+      if (sources.length === 0 || !tokens) continue;
+
+      console.log(`[Cron] Fetching for ${user.email}...`);
       const rawNewsletters = await fetchNewsletters(sources, tokens);
       if (rawNewsletters.length > 0) {
         const digest = await curateNewsletter(rawNewsletters, sources);
-        db.saveDigest(digest);
-        await sendDigestEmail(digest);
-        console.log('Daily digest created and emailed successfully');
+        db.saveDigest(user.id, digest);
+        await sendDigestEmail(digest, user.email);
+        console.log(`[Cron] Daily digest created for ${user.email}`);
       }
+    } catch (err) {
+      console.error(`[Cron] Failed for ${user.email}:`, err.message);
     }
-  } catch (err) {
-    console.error('Scheduled curation failed:', err);
   }
 }, { timezone: 'America/New_York' });
 
-// ─── Weekly summary (Sundays at 9 AM Eastern) ─────────────────
+// ═══════════════════════════════════════════════════════════════
+// WEEKLY SUMMARY — Sundays at 9 AM Eastern for ALL users
+// ═══════════════════════════════════════════════════════════════
+
 cron.schedule('0 9 * * 0', async () => {
-  console.log('Running weekly digest curation...');
-  try {
-    const dailyDigests = db.getRecentDailyDigests(7);
-    if (dailyDigests.length === 0) {
-      console.log('No daily digests found for weekly summary');
-      return;
+  console.log('[Cron] Running weekly digest for all users...');
+  const allUsers = db.getAllUsers();
+
+  for (const user of allUsers) {
+    try {
+      const dailyDigests = db.getRecentDailyDigests(user.id, 7);
+      if (dailyDigests.length === 0) continue;
+
+      const result = await curateWeeklyDigest(dailyDigests);
+      if (result) {
+        db.saveWeeklyDigest(user.id, result.weekStart, result.weekEnd, result.digest);
+        await sendWeeklyDigestEmail(result.digest, user.email);
+        console.log(`[Cron] Weekly digest created for ${user.email}`);
+      }
+    } catch (err) {
+      console.error(`[Cron] Weekly failed for ${user.email}:`, err.message);
     }
-    const result = await curateWeeklyDigest(dailyDigests);
-    if (result) {
-      db.saveWeeklyDigest(result.weekStart, result.weekEnd, result.digest);
-      await sendWeeklyDigestEmail(result.digest);
-      console.log('Weekly digest created and emailed successfully');
-    }
-  } catch (err) {
-    console.error('Weekly curation failed:', err);
   }
 }, { timezone: 'America/New_York' });
 
@@ -232,4 +381,7 @@ app.listen(PORT, '0.0.0.0', () => {
     const distExists = fs.existsSync(DIST_INDEX);
     console.log(`Client build: ${distExists ? 'found ✓' : 'NOT FOUND ✗ — check build logs'}`);
   }
+  // Log user count on startup
+  const users = db.getAllUsers();
+  console.log(`Registered users: ${users.length}`);
 });

@@ -73,7 +73,7 @@ function WeeklyDetail({ digest, onBack }) {
 }
 
 // ── Main Weekly View ─────────────────────────────────────────────
-export default function WeeklyDigestView() {
+export default function WeeklyDigestView({ token }) {
   const [latest, setLatest] = useState(null);
   const [history, setHistory] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -81,10 +81,12 @@ export default function WeeklyDigestView() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
 
+  const headers = { Authorization: `Bearer ${token}` };
+
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/api/weekly/latest`).then(r => r.json()),
-      fetch(`${API}/api/weekly/history`).then(r => r.json()),
+      fetch(`${API}/api/weekly/latest`, { headers }).then(r => r.json()),
+      fetch(`${API}/api/weekly/history`, { headers }).then(r => r.json()),
     ]).then(([lat, hist]) => {
       setLatest(lat);
       setHistory(hist);
@@ -96,13 +98,12 @@ export default function WeeklyDigestView() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/api/weekly/generate`, { method: 'POST' });
+      const res = await fetch(`${API}/api/weekly/generate`, { method: 'POST', headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      // Reload latest
-      const updated = await fetch(`${API}/api/weekly/latest`).then(r => r.json());
+      const updated = await fetch(`${API}/api/weekly/latest`, { headers }).then(r => r.json());
       setLatest(updated);
-      const updatedHistory = await fetch(`${API}/api/weekly/history`).then(r => r.json());
+      const updatedHistory = await fetch(`${API}/api/weekly/history`, { headers }).then(r => r.json());
       setHistory(updatedHistory);
     } catch (err) {
       setError(err.message);
@@ -112,7 +113,7 @@ export default function WeeklyDigestView() {
   };
 
   const openHistory = async (id) => {
-    const res = await fetch(`${API}/api/weekly/${id}`);
+    const res = await fetch(`${API}/api/weekly/${id}`, { headers });
     const data = await res.json();
     setSelected(data);
   };
@@ -145,7 +146,6 @@ export default function WeeklyDigestView() {
         </div>
       )}
 
-      {/* Latest weekly */}
       {latest?.content && (
         <div className="weekly-latest-wrapper">
           <div className="weekly-latest-label">
@@ -163,7 +163,6 @@ export default function WeeklyDigestView() {
         </div>
       )}
 
-      {/* History */}
       {history.length > 1 && (
         <div className="weekly-history">
           <h3 className="weekly-history-title">Past Weeks</h3>

@@ -1,9 +1,12 @@
 /* ──────────────────────────────────────────────────
-   Daily Digest — Newsletter Aggregator
-   Clean, editorial design with warm tones
+   The Digestino
+   Clean, editorial design with warm espresso tones
    ────────────────────────────────────────────────── */
 
 :root {
+  --brand: #c2410c;
+  --brand-hover: #9a3412;
+  --brand-light: #fff7ed;
   --bg: #faf9f7;
   --bg-card: #ffffff;
   --bg-elevated: #f5f3ef;
@@ -37,6 +40,9 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ─── Loading ─── (also uses brand color) ────────── */
+.app-loading p { color: var(--brand); }
 
 /* ─── App Layout ────────────────────────────────── */
 
@@ -105,20 +111,52 @@ body {
   gap: 12px;
   color: var(--text);
   flex-shrink: 0;
+  text-decoration: none;
 }
 
-.header-title {
-  font-family: var(--font-serif);
-  font-size: 20px;
-  font-weight: 700;
+/* ─── Logo ──────────────────────────────────────── */
+
+.digestino-logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.digestino-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.digestino-wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   line-height: 1.2;
 }
 
-.header-subtitle {
-  font-size: 11px;
+.digestino-the {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--brand);
+  letter-spacing: 0.5px;
+}
+
+.digestino-name {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.digestino-tagline {
+  font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   font-weight: 500;
 }
 

@@ -98,7 +98,7 @@ function buildEmailHtml(digest, appUrl) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Daily Digest — ${formattedDate}</title>
+  <title>The Digestino — ${formattedDate}</title>
 </head>
 <body style="margin:0; padding:0; background:#faf9f7; font-family:-apple-system, BlinkMacSystemFont, 'Inter', sans-serif;">
 
@@ -114,7 +114,7 @@ function buildEmailHtml(digest, appUrl) {
                 ${formattedDate}
               </div>
               <div style="font-family:Georgia, serif; font-size:32px; font-weight:700; color:#1a1a1a; margin-bottom:12px; line-height:1.2;">
-                Your Daily Digest
+                The Digestino
               </div>
               ${digestSummary ? `<div style="font-size:15px; color:#6b6b6b; line-height:1.6; max-width:460px; margin:0 auto 12px;">${escapeHtml(digestSummary)}</div>` : ''}
               <div style="font-size:12px; color:#9a9a9a;">
@@ -171,7 +171,7 @@ function buildEmailHtml(digest, appUrl) {
                 View in App →
               </a>
               <div style="font-size:12px; color:#9a9a9a; line-height:1.6;">
-                Daily Digest · Curated by AI · Delivered daily at 8 PM ET
+                The Digestino · Curated by AI · Daily at 8 PM ET
               </div>
             </td>
           </tr>
@@ -210,9 +210,9 @@ async function sendDigestEmail(digest) {
 
   try {
     const result = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'Daily Digest <onboarding@resend.dev>',
+      from: process.env.RESEND_FROM_EMAIL || 'The Digestino <onboarding@resend.dev>',
       to: process.env.DIGEST_EMAIL,
-      subject: `Your Daily Digest — ${dateLabel}`,
+      subject: `The Digestino — ${dateLabel}`,
       html,
     });
     console.log('Digest email sent:', result.data?.id || 'ok');
@@ -299,7 +299,7 @@ function buildWeeklyEmailHtml(digest, appUrl) {
                 View in App →
               </a>
               <div style="font-size:12px; color:#9a9a9a; line-height:1.6;">
-                Daily Digest · Week in Review · Every Sunday at 9 AM ET
+                The Digestino · Week in Review · Every Sunday at 9 AM ET
               </div>
             </td>
           </tr>
@@ -321,9 +321,9 @@ async function sendWeeklyDigestEmail(digest) {
   const html = buildWeeklyEmailHtml(digest, appUrl);
   try {
     const result = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'Daily Digest <onboarding@resend.dev>',
+      from: process.env.RESEND_FROM_EMAIL || 'The Digestino <onboarding@resend.dev>',
       to: process.env.DIGEST_EMAIL,
-      subject: `Week in Review — ${digest.weekOf || 'This Week'}`,
+      subject: `The Digestino — Week in Review — ${digest.weekOf || 'This Week'}`,
       html,
     });
     console.log('Weekly digest email sent:', result.data?.id || 'ok');

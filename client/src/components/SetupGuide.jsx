@@ -39,7 +39,7 @@ export default function SetupGuide({ authenticated, onConnect, onDone }) {
   return (
     <div className="setup-guide">
       <div className="setup-header">
-        <h2>Welcome to Daily Digest</h2>
+        <h2>Welcome to The Digestino</h2>
         <p>Let's get you set up in three easy steps.</p>
       </div>
 
@@ -66,7 +66,7 @@ export default function SetupGuide({ authenticated, onConnect, onDone }) {
       <div className="setup-info">
         <h3>How it works</h3>
         <p>
-          Daily Digest connects to your Gmail, reads newsletters from the sources you
+          The Digestino connects to your Gmail, reads newsletters from the sources you
           specify, and uses AI to curate a single, beautiful daily digest. It picks the most
           relevant stories, avoids duplicates, and presents everything in a clean format —
           so you stay informed without the noise.

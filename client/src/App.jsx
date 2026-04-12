@@ -114,7 +114,7 @@ export default function App() {
     return (
       <div className="app-loading">
         <div className="loader" />
-        <p>Loading your Daily Digest...</p>
+        <p>Loading The Digestino...</p>
       </div>
     );
   }

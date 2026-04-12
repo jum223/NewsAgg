@@ -1,4 +1,4 @@
-# Daily Digest — Newsletter Aggregator
+# The Digestino
 
 An AI-powered newsletter aggregator that connects to your Gmail, reads newsletters from sources you specify, and uses Claude Haiku to curate a single, beautiful daily digest.
 
@@ -8,8 +8,10 @@ An AI-powered newsletter aggregator that connects to your Gmail, reads newslette
 - **AI Curation** — Claude Haiku selects the most relevant stories and removes duplicates
 - **Smart Limits** — Up to 4 top stories, 4 quick hits, and 3 visuals (only what's worth reading)
 - **Source Attribution** — Every piece shows where it came from
-- **Daily Schedule** — Auto-curates at 7 AM, or refresh manually anytime
-- **Digest History** — Browse past digests
+- **Daily Schedule** — Auto-curates at 8 PM Eastern, or refresh manually anytime
+- **Weekly Review** — Sunday digest of the top 5 stories that mattered this week
+- **Email Delivery** — Daily and weekly digests sent directly to your inbox via Resend
+- **Digest History** — Browse past digests with version tracking
 
 ## Prerequisites
 
@@ -65,20 +67,24 @@ The app will be available at **http://localhost:5173**
 
 ```
 ├── server/
-│   ├── index.js        # Express API server
-│   ├── gmail.js        # Gmail API integration
-│   ├── parser.js       # Newsletter HTML parser
-│   ├── curator.js      # Claude Haiku AI curation
-│   └── database.js     # SQLite database layer
+│   ├── index.js          # Express API server + cron jobs
+│   ├── gmail.js          # Gmail API integration
+│   ├── parser.js         # Newsletter HTML parser
+│   ├── curator.js        # Claude Haiku daily curation
+│   ├── weeklyCurator.js  # Claude Haiku weekly synthesis
+│   ├── emailer.js        # Resend email delivery
+│   └── database.js       # SQLite database layer
 ├── client/
 │   ├── src/
 │   │   ├── App.jsx           # Main app component
 │   │   ├── components/
+│   │   │   ├── Logo.jsx          # The Digestino SVG logo
 │   │   │   ├── Header.jsx        # Navigation header
 │   │   │   ├── SetupGuide.jsx    # First-run setup wizard
 │   │   │   ├── SourceManager.jsx # Add/remove newsletter sources
 │   │   │   ├── DigestView.jsx    # Main digest reader
-│   │   │   └── DigestHistory.jsx # Past digests browser
+│   │   │   ├── DigestHistory.jsx # Past digests browser
+│   │   │   └── WeeklyDigestView.jsx # Week in Review
 │   │   └── styles/
 │   │       └── app.css           # Full stylesheet
 │   └── vite.config.js
@@ -91,6 +97,7 @@ The app will be available at **http://localhost:5173**
 - **Frontend**: React 18 + Vite + Lucide Icons
 - **Backend**: Node.js + Express
 - **Database**: SQLite (via better-sqlite3)
-- **Email**: Gmail API (OAuth 2.0)
+- **Email**: Gmail API (OAuth 2.0) + Resend (delivery)
 - **AI**: Claude Haiku (Anthropic SDK)
-- **Scheduling**: node-cron (daily at 7 AM)
+- **Scheduling**: node-cron (daily 8 PM ET, weekly Sunday 9 AM ET)
+- **Deployment**: Railway

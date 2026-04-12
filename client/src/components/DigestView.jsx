@@ -91,7 +91,7 @@ export default function DigestView({ digest, onFetch, fetching, hasSources }) {
       {/* Digest Header */}
       <div className="digest-header">
         <div className="digest-date">{formatDate(content.date || digest.date)}</div>
-        <h2 className="digest-title">Your Daily Digest</h2>
+        <h2 className="digest-title">Today's Digestino</h2>
         {digestSummary && <p className="digest-summary">{digestSummary}</p>}
         <div className="digest-sources-bar">
           Curated from: {sourcesUsed.map(s => s.name).join(' · ')}

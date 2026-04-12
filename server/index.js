@@ -227,7 +227,7 @@ cron.schedule('0 9 * * 0', async () => {
 }, { timezone: 'America/New_York' });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Newsletter Aggregator running on port ${PORT} [${IS_PROD ? 'production' : 'development'}]`);
+  console.log(`The Digestino running on port ${PORT} [${IS_PROD ? 'production' : 'development'}]`);
   if (IS_PROD) {
     const distExists = fs.existsSync(DIST_INDEX);
     console.log(`Client build: ${distExists ? 'found ✓' : 'NOT FOUND ✗ — check build logs'}`);

@@ -1,10 +1,80 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Mail } from 'lucide-react';
+import { Plus, Trash2, Mail, ExternalLink, Sparkles } from 'lucide-react';
+
+const RECOMMENDATIONS = {
+  digestino: [
+    {
+      name: 'Morning Brew',
+      description: 'Daily business, finance & tech news — sharp and actually fun to read.',
+      url: 'https://www.morningbrew.com',
+      tag: 'Business · Tech',
+    },
+    {
+      name: 'The Hustle',
+      description: 'Business and tech stories with attitude. Millions of readers.',
+      url: 'https://thehustle.co',
+      tag: 'Business · Startups',
+    },
+    {
+      name: 'Axios Markets',
+      description: 'Concise market-moving news and economic analysis every morning.',
+      url: 'https://www.axios.com/newsletters/axios-markets',
+      tag: 'Finance · Markets',
+    },
+    {
+      name: 'Milk Road',
+      description: 'The #1 crypto newsletter — daily crypto & Web3 in plain English.',
+      url: 'https://www.milkroad.com',
+      tag: 'Crypto · Web3',
+    },
+    {
+      name: 'The Daily Upside',
+      description: 'Intelligent finance and investing news without the Wall Street spin.',
+      url: 'https://www.thedailyupside.com',
+      tag: 'Finance · Investing',
+    },
+  ],
+  digestina: [
+    {
+      name: 'The Skimm',
+      description: 'The newsletter that makes it easier to be smarter — 7M+ subscribers.',
+      url: 'https://www.theskimm.com',
+      tag: 'News · Lifestyle',
+    },
+    {
+      name: 'Well+Good',
+      description: 'Wellness trends, healthy living tips, and expert-backed advice.',
+      url: 'https://www.wellandgood.com/newsletters',
+      tag: 'Wellness · Health',
+    },
+    {
+      name: 'Refinery29',
+      description: 'Fashion, culture, and real-life stories for modern women.',
+      url: 'https://www.refinery29.com/en-us/newsletter-sign-up',
+      tag: 'Fashion · Culture',
+    },
+    {
+      name: 'Who What Wear',
+      description: 'Daily style inspiration, trend reports, and shopping picks.',
+      url: 'https://www.whowhatwear.com',
+      tag: 'Fashion · Style',
+    },
+    {
+      name: 'CNBC Make It',
+      description: 'Career growth, money moves, and financial wellness made actionable.',
+      url: 'https://www.cnbc.com/makeitnewsletter',
+      tag: 'Career · Finance',
+    },
+  ],
+};
 
 export default function SourceManager({ sources, onAdd, onRemove }) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
+
+  const flavor = document.documentElement.getAttribute('data-flavor') || 'digestino';
+  const recommendations = RECOMMENDATIONS[flavor] || RECOMMENDATIONS.digestino;
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -16,6 +86,12 @@ export default function SourceManager({ sources, onAdd, onRemove }) {
       setName('');
     }
     setAdding(false);
+  };
+
+  const handleQuickAdd = async (rec) => {
+    const nameToUse = rec.name;
+    // Pre-fill the form so user can enter the email themselves
+    setName(nameToUse);
   };
 
   return (
@@ -81,6 +157,36 @@ export default function SourceManager({ sources, onAdd, onRemove }) {
           ))}
         </div>
       )}
+
+      {/* Recommendations */}
+      <div className="recommendations-section">
+        <div className="recommendations-header">
+          <Sparkles size={16} />
+          <span>Recommended for you</span>
+        </div>
+        <p className="recommendations-sub">
+          Popular newsletters picked for your edition. Click a card to visit their site and sign up — once you're subscribed, add the sender email above.
+        </p>
+        <div className="recommendations-grid">
+          {recommendations.map((rec) => (
+            <a
+              key={rec.name}
+              href={rec.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rec-card"
+            >
+              <div className="rec-card-top">
+                <div className="rec-avatar">{rec.name.charAt(0)}</div>
+                <ExternalLink size={14} className="rec-external" />
+              </div>
+              <div className="rec-name">{rec.name}</div>
+              <div className="rec-tag">{rec.tag}</div>
+              <div className="rec-description">{rec.description}</div>
+            </a>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,21 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const FLAVOR_EMAIL = {
+  digestino: {
+    name: 'The Digestino',
+    brand: '#c2410c',
+    brandHover: '#9a3412',
+    tagline: 'Curated by AI · Daily',
+  },
+  digestina: {
+    name: 'The Digestina',
+    brand: '#be185d',
+    brandHover: '#9d174d',
+    tagline: 'Curated with care · Daily',
+  },
+};
+
 const categoryEmoji = {
   finance: '📈',
   tech: '💻',
@@ -9,6 +24,12 @@ const categoryEmoji = {
   business: '💼',
   news: '🌐',
   sports: '⚽',
+  lifestyle: '✨',
+  wellness: '🌿',
+  fashion: '👗',
+  culture: '🎨',
+  health: '💚',
+  career: '🚀',
 };
 
 const categoryColor = {
@@ -18,6 +39,12 @@ const categoryColor = {
   business: '#3b82f6',
   news: '#8b5cf6',
   sports: '#ef4444',
+  lifestyle: '#ec4899',
+  wellness: '#22c55e',
+  fashion: '#a855f7',
+  culture: '#f97316',
+  health: '#14b8a6',
+  career: '#6366f1',
 };
 
 function formatEmailDate(isoStr) {
@@ -29,9 +56,10 @@ function formatEmailDate(isoStr) {
 }
 
 function buildEmailHtml(digest, appUrl) {
-  const { topStories = [], quickHits = [], visuals = [], digestSummary, sourcesUsed = [], date } = digest;
+  const { topStories = [], quickHits = [], visuals = [], digestSummary, sourcesUsed = [], date, flavor } = digest;
   const formattedDate = formatEmailDate(date);
   const viewUrl = appUrl || 'https://newsagg-production.up.railway.app';
+  const f = FLAVOR_EMAIL[flavor] || FLAVOR_EMAIL.digestino;
 
   const storiesHtml = topStories.map(story => {
     const emoji = categoryEmoji[story.category] || '📰';
@@ -98,7 +126,7 @@ function buildEmailHtml(digest, appUrl) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Digestino — ${formattedDate}</title>
+  <title>${f.name} — ${formattedDate}</title>
 </head>
 <body style="margin:0; padding:0; background:#faf9f7; font-family:-apple-system, BlinkMacSystemFont, 'Inter', sans-serif;">
 
@@ -110,11 +138,11 @@ function buildEmailHtml(digest, appUrl) {
           <!-- Header -->
           <tr>
             <td style="text-align:center; padding-bottom:32px; border-bottom:1px solid #e8e5e0;">
-              <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:#2563eb; margin-bottom:8px;">
+              <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:${f.brand}; margin-bottom:8px;">
                 ${formattedDate}
               </div>
               <div style="font-family:Georgia, serif; font-size:32px; font-weight:700; color:#1a1a1a; margin-bottom:12px; line-height:1.2;">
-                The Digestino
+                ${f.name}
               </div>
               ${digestSummary ? `<div style="font-size:15px; color:#6b6b6b; line-height:1.6; max-width:460px; margin:0 auto 12px;">${escapeHtml(digestSummary)}</div>` : ''}
               <div style="font-size:12px; color:#9a9a9a;">
@@ -167,11 +195,11 @@ function buildEmailHtml(digest, appUrl) {
           <!-- Footer -->
           <tr>
             <td style="text-align:center; padding-top:32px; border-top:1px solid #e8e5e0;">
-              <a href="${viewUrl}" style="display:inline-block; padding:12px 28px; background:#2563eb; color:#ffffff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:600; margin-bottom:20px;">
+              <a href="${viewUrl}" style="display:inline-block; padding:12px 28px; background:${f.brand}; color:#ffffff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:600; margin-bottom:20px;">
                 View in App →
               </a>
               <div style="font-size:12px; color:#9a9a9a; line-height:1.6;">
-                The Digestino · Curated by AI · Daily at 8 PM ET
+                ${f.name} · ${f.tagline}
               </div>
             </td>
           </tr>
@@ -213,12 +241,14 @@ async function sendDigestEmail(digest, recipientEmail) {
   const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
   const html = buildEmailHtml(digest, appUrl);
   const dateLabel = formatEmailDate(digest.date);
+  const f = FLAVOR_EMAIL[digest.flavor] || FLAVOR_EMAIL.digestino;
+  const fromDefault = `${f.name} <onboarding@resend.dev>`;
 
   try {
     const result = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'The Digestino <onboarding@resend.dev>',
+      from: process.env.RESEND_FROM_EMAIL || fromDefault,
       to: toEmail,
-      subject: `The Digestino — ${dateLabel}`,
+      subject: `${f.name} — ${dateLabel}`,
       html,
     });
     console.log(`Digest email sent to ${toEmail}:`, result.data?.id || 'ok');
@@ -228,8 +258,9 @@ async function sendDigestEmail(digest, recipientEmail) {
 }
 
 function buildWeeklyEmailHtml(digest, appUrl) {
-  const { weekOf, weekSummary, topStories = [] } = digest;
+  const { weekOf, weekSummary, topStories = [], flavor } = digest;
   const viewUrl = appUrl || 'https://newsagg-production.up.railway.app';
+  const f = FLAVOR_EMAIL[flavor] || FLAVOR_EMAIL.digestino;
 
   const rankEmoji = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
@@ -301,11 +332,11 @@ function buildWeeklyEmailHtml(digest, appUrl) {
           <!-- Footer -->
           <tr>
             <td style="text-align:center; padding-top:32px; border-top:1px solid #e8e5e0;">
-              <a href="${viewUrl}" style="display:inline-block; padding:12px 28px; background:#d97706; color:#ffffff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:600; margin-bottom:20px;">
+              <a href="${viewUrl}" style="display:inline-block; padding:12px 28px; background:${f.brand}; color:#ffffff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:600; margin-bottom:20px;">
                 View in App →
               </a>
               <div style="font-size:12px; color:#9a9a9a; line-height:1.6;">
-                The Digestino · Week in Review · Every Sunday at 9 AM ET
+                ${f.name} · Week in Review · Every Sunday at 9 AM ET
               </div>
             </td>
           </tr>
@@ -335,11 +366,13 @@ async function sendWeeklyDigestEmail(digest, recipientEmail) {
   }
   const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
   const html = buildWeeklyEmailHtml(digest, appUrl);
+  const fw = FLAVOR_EMAIL[digest.flavor] || FLAVOR_EMAIL.digestino;
+  const fromDefaultWeekly = `${fw.name} <onboarding@resend.dev>`;
   try {
     const result = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'The Digestino <onboarding@resend.dev>',
+      from: process.env.RESEND_FROM_EMAIL || fromDefaultWeekly,
       to: toEmail,
-      subject: `The Digestino — Week in Review — ${digest.weekOf || 'This Week'}`,
+      subject: `${fw.name} — Week in Review — ${digest.weekOf || 'This Week'}`,
       html,
     });
     console.log(`Weekly digest email sent to ${toEmail}:`, result.data?.id || 'ok');

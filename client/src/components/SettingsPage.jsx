@@ -54,24 +54,15 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
         <p className="settings-desc">
           Choose when you'd like your daily digest to be generated and emailed to you. All times are Eastern Time.
         </p>
-        <div className="settings-row">
-          <select
-            className="settings-select"
-            value={cronHour}
-            onChange={(e) => setCronHour(parseInt(e.target.value, 10))}
-          >
-            {HOURS.map(h => (
-              <option key={h.value} value={h.value}>{h.label}</option>
-            ))}
-          </select>
-          <button
-            className="btn btn-primary"
-            onClick={handleSave}
-            disabled={saving || (cronHour === user.daily_cron_hour && flavor === user.flavor)}
-          >
-            {saved ? <><CheckCircle size={16} /> Saved</> : saving ? 'Saving...' : <><Save size={16} /> Save</>}
-          </button>
-        </div>
+        <select
+          className="settings-select"
+          value={cronHour}
+          onChange={(e) => setCronHour(parseInt(e.target.value, 10))}
+        >
+          {HOURS.map(h => (
+            <option key={h.value} value={h.value}>{h.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="settings-section">
@@ -98,6 +89,16 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
             The Digestina
           </button>
         </div>
+      </div>
+
+      <div className="settings-section settings-save-row">
+        <button
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={saving || (cronHour === user.daily_cron_hour && flavor === user.flavor)}
+        >
+          {saved ? <><CheckCircle size={16} /> Saved</> : saving ? 'Saving...' : <><Save size={16} /> Save Changes</>}
+        </button>
       </div>
 
       <div className="settings-section">

@@ -86,12 +86,15 @@ export default function DigestView({ digest, onFetch, fetching, hasSources }) {
   const { content } = digest;
   const { topStories = [], quickHits = [], visuals = [], digestSummary, sourcesUsed = [] } = content;
 
+  const flavor = content.flavor || digest.flavor || document.documentElement.getAttribute('data-flavor') || 'digestino';
+  const editionName = flavor === 'digestina' ? "Today's Digestina" : "Today's Digestino";
+
   return (
     <div className="digest-page">
       {/* Digest Header */}
       <div className="digest-header">
         <div className="digest-date">{formatDate(content.date || digest.date)}</div>
-        <h2 className="digest-title">Today's Digestino</h2>
+        <h2 className="digest-title">{editionName}</h2>
         {digestSummary && <p className="digest-summary">{digestSummary}</p>}
         <div className="digest-sources-bar">
           Curated from: {sourcesUsed.map(s => s.name).join(' · ')}

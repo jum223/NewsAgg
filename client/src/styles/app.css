@@ -1622,6 +1622,16 @@ body {
 
 .settings-danger { border-color: #fecaca; }
 
+.settings-save-row {
+  display: flex;
+  justify-content: flex-end;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin-top: -8px;
+  margin-bottom: 8px;
+}
+
 .btn-danger {
   display: inline-flex;
   align-items: center;
@@ -2048,13 +2058,13 @@ body {
   flex-shrink: 0;
 }
 
-.digestino-dot { background: #c2410c; }
+.digestino-dot { background: #2563eb; }
 .digestina-dot { background: #be185d; }
 
 .digestino-toggle.active {
-  border-color: #c2410c;
-  background: #fff7ed;
-  color: #c2410c;
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .digestina-toggle.active {

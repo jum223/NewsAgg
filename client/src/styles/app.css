@@ -31,6 +31,22 @@
   --font-serif: 'Playfair Display', Georgia, serif;
 }
 
+/* ─── Digestina Theme Override ──────────────────────
+   Applied when data-flavor="digestina" is on <html>.
+   Overrides brand + accent variables only — layout is shared.
+   ─────────────────────────────────────────────────── */
+
+:root[data-flavor="digestina"] {
+  --brand: #be185d;
+  --brand-hover: #9d174d;
+  --brand-light: #fdf2f8;
+  --accent: #be185d;
+  --accent-hover: #9d174d;
+  --accent-light: #fce7f3;
+  --bg: #fff9fb;
+  --bg-elevated: #fdf2f8;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -1675,6 +1691,272 @@ body {
   font-size: 12px;
   color: var(--text-muted);
   flex-shrink: 0;
+}
+
+/* ─── Flavor Picker ─────────────────────────────── */
+
+.flavor-picker-overlay {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px 20px;
+}
+
+.flavor-picker-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 40px 40px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: var(--shadow-lg);
+}
+
+.flavor-picker-welcome {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.flavor-picker-hi {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+
+.flavor-picker-title {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  line-height: 1.2;
+}
+
+.flavor-picker-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.flavor-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.flavor-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-family: var(--font-sans);
+  width: 100%;
+}
+
+.flavor-option:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.digestino-option.selected {
+  border-color: #c2410c;
+  background: #fff7ed;
+}
+
+.digestina-option.selected {
+  border-color: #be185d;
+  background: #fdf2f8;
+}
+
+.flavor-option-icon { flex-shrink: 0; }
+
+.flavor-option-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.flavor-option-name {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.flavor-option-name em {
+  font-size: 13px;
+  font-weight: 600;
+  font-style: italic;
+  margin-right: 3px;
+}
+
+.digestino-name { color: #1a1a1a; }
+.digestina-name { color: #1a1a1a; }
+
+.flavor-option-tagline {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.digestino-option .flavor-option-tagline { color: #c2410c; }
+.digestina-option .flavor-option-tagline { color: #be185d; }
+
+.flavor-option-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.flavor-option-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Suggestions */
+.flavor-suggestions {
+  margin-bottom: 24px;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.flavor-suggestions-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.flavor-suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flavor-suggestion-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.flavor-suggestion-chip.digestino {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.flavor-suggestion-chip.digestina {
+  background: #fdf2f8;
+  color: #be185d;
+  border: 1px solid #fbcfe8;
+}
+
+/* Confirm button */
+.flavor-confirm-btn {
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+
+.flavor-confirm-btn.digestino {
+  background: #c2410c;
+  color: white;
+}
+
+.flavor-confirm-btn.digestino:hover:not(:disabled) { background: #9a3412; }
+
+.flavor-confirm-btn.digestina {
+  background: #be185d;
+  color: white;
+}
+
+.flavor-confirm-btn.digestina:hover:not(:disabled) { background: #9d174d; }
+
+.flavor-confirm-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* ─── Settings: Flavor Toggle ────────────────────── */
+
+.flavor-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.flavor-toggle-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.flavor-toggle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.digestino-dot { background: #c2410c; }
+.digestina-dot { background: #be185d; }
+
+.digestino-toggle.active {
+  border-color: #c2410c;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.digestina-toggle.active {
+  border-color: #be185d;
+  background: #fdf2f8;
+  color: #be185d;
 }
 
 /* ─── Responsive ────────────────────────────────── */

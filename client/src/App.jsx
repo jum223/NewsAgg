@@ -7,6 +7,7 @@ import WeeklyDigestView from './components/WeeklyDigestView';
 import SettingsPage from './components/SettingsPage';
 import AdminPanel from './components/AdminPanel';
 import LoginPage from './components/LoginPage';
+import FlavorPicker from './components/FlavorPicker';
 
 // In production, API is served from the same origin. In dev, Vite proxies to localhost:3001.
 const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -80,6 +81,11 @@ export default function App() {
         const userData = await meRes.json();
         setUser(userData);
 
+        // Apply flavor theme to document
+        if (userData.flavor) {
+          document.documentElement.setAttribute('data-flavor', userData.flavor);
+        }
+
         // Load sources and latest digest in parallel
         const [srcRes, digestRes] = await Promise.all([
           fetch(`${API}/api/sources`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -111,6 +117,14 @@ export default function App() {
     setSources([]);
     setLatestDigest(null);
     setView('digest');
+    document.documentElement.removeAttribute('data-flavor');
+  };
+
+  const handleFlavorSelected = (flavor) => {
+    setUser(prev => ({ ...prev, flavor }));
+    document.documentElement.setAttribute('data-flavor', flavor);
+    // If no sources yet, go straight to sources page
+    if (sources.length === 0) setView('sources');
   };
 
   const addSource = async (email, name) => {
@@ -174,6 +188,17 @@ export default function App() {
     return <LoginPage authError={authError} />;
   }
 
+  // ── Logged in but no flavor chosen yet — show picker ──
+  if (!user.flavor) {
+    return (
+      <FlavorPicker
+        user={user}
+        token={token}
+        onComplete={handleFlavorSelected}
+      />
+    );
+  }
+
   // ── Logged in — main app ──
   return (
     <div className="app">
@@ -218,7 +243,10 @@ export default function App() {
           <SettingsPage
             user={user}
             token={token}
-            onUserUpdate={(u) => setUser(prev => ({ ...prev, ...u }))}
+            onUserUpdate={(u) => {
+              setUser(prev => ({ ...prev, ...u }));
+              if (u.flavor) document.documentElement.setAttribute('data-flavor', u.flavor);
+            }}
             onLogout={logout}
           />
         )}

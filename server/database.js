@@ -125,6 +125,26 @@ db.exec(`
 
 migrateLegacyUserScopedTables();
 
+// ─── Migrations: additive column changes ──────────────────────
+// Safe to run every startup — ALTER TABLE is a no-op if column exists is
+// simulated via try/catch since SQLite has no IF NOT EXISTS for columns.
+
+const columnMigrations = [
+  { table: 'users', column: 'flavor', sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
+];
+
+for (const { table, column, sql } of columnMigrations) {
+  try {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!cols.some(c => c.name === column)) {
+      db.exec(sql);
+      console.log(`[database] Added column "${column}" to "${table}"`);
+    }
+  } catch (e) {
+    // Column already exists or other benign error
+  }
+}
+
 // ─── Users ────────────────────────────────────────────────────
 
 function findUserByGoogleId(googleId) {
@@ -139,15 +159,15 @@ function findUserById(id) {
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 }
 
-function createUser({ googleId, email, name, avatarUrl, isAdmin = false }) {
+function createUser({ googleId, email, name, avatarUrl, isAdmin = false, flavor = null }) {
   const result = db.prepare(
-    'INSERT INTO users (google_id, email, name, avatar_url, is_admin) VALUES (?, ?, ?, ?, ?)'
-  ).run(googleId, email, name, avatarUrl, isAdmin ? 1 : 0);
+    'INSERT INTO users (google_id, email, name, avatar_url, is_admin, flavor) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(googleId, email, name, avatarUrl, isAdmin ? 1 : 0, flavor);
   return findUserById(result.lastInsertRowid);
 }
 
 function updateUser(id, fields) {
-  const allowed = ['name', 'avatar_url', 'daily_cron_hour'];
+  const allowed = ['name', 'avatar_url', 'daily_cron_hour', 'flavor'];
   const updates = [];
   const values = [];
   for (const key of allowed) {
@@ -163,7 +183,7 @@ function updateUser(id, fields) {
 }
 
 function getAllUsers() {
-  return db.prepare('SELECT id, email, name, avatar_url, daily_cron_hour, is_admin, created_at FROM users').all();
+  return db.prepare('SELECT id, email, name, avatar_url, daily_cron_hour, is_admin, flavor, created_at FROM users').all();
 }
 
 function getUsersByDailyCronHour(hour) {

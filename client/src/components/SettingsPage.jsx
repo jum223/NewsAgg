@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Save, CheckCircle, LogOut } from 'lucide-react';
+import { Clock, Save, CheckCircle, LogOut, Sparkles } from 'lucide-react';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
@@ -10,6 +10,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => {
 
 export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
   const [cronHour, setCronHour] = useState(user.daily_cron_hour ?? 20);
+  const [flavor, setFlavor] = useState(user.flavor || 'digestino');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -23,7 +24,7 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ daily_cron_hour: cronHour }),
+        body: JSON.stringify({ daily_cron_hour: cronHour, flavor }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -66,9 +67,35 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
           <button
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving || cronHour === user.daily_cron_hour}
+            disabled={saving || (cronHour === user.daily_cron_hour && flavor === user.flavor)}
           >
             {saved ? <><CheckCircle size={16} /> Saved</> : saving ? 'Saving...' : <><Save size={16} /> Save</>}
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">
+          <Sparkles size={18} />
+          Your Edition
+        </h3>
+        <p className="settings-desc">
+          Switch between The Digestino and The Digestina at any time. Your sources and history stay the same — only the tone and look change.
+        </p>
+        <div className="flavor-toggle">
+          <button
+            className={`flavor-toggle-btn digestino-toggle ${flavor === 'digestino' ? 'active' : ''}`}
+            onClick={() => setFlavor('digestino')}
+          >
+            <span className="flavor-toggle-dot digestino-dot" />
+            The Digestino
+          </button>
+          <button
+            className={`flavor-toggle-btn digestina-toggle ${flavor === 'digestina' ? 'active' : ''}`}
+            onClick={() => setFlavor('digestina')}
+          >
+            <span className="flavor-toggle-dot digestina-dot" />
+            The Digestina
           </button>
         </div>
       </div>

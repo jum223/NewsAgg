@@ -128,11 +128,12 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // Get current user info (requires auth)
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  const { id, email, name, avatar_url, daily_cron_hour, is_admin, created_at } = req.user;
+  const { id, email, name, avatar_url, daily_cron_hour, is_admin, flavor, created_at } = req.user;
   const tokens = db.getTokens(id);
   res.json({
     id, email, name, avatar_url, daily_cron_hour,
     is_admin: !!is_admin,
+    flavor: flavor || null,
     created_at,
     gmail_connected: !!tokens,
   });
@@ -143,12 +144,15 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 app.put('/api/settings', requireAuth, (req, res) => {
-  const { daily_cron_hour } = req.body;
+  const { daily_cron_hour, flavor } = req.body;
   if (daily_cron_hour !== undefined) {
     const hour = parseInt(daily_cron_hour, 10);
     if (isNaN(hour) || hour < 0 || hour > 23) {
       return res.status(400).json({ error: 'Hour must be 0-23' });
     }
+  }
+  if (flavor !== undefined && !['digestino', 'digestina'].includes(flavor)) {
+    return res.status(400).json({ error: 'Invalid flavor' });
   }
   const updated = db.updateUser(req.user.id, req.body);
   res.json(updated);
@@ -225,7 +229,8 @@ app.post('/api/newsletters/fetch', requireAuth, async (req, res) => {
       return res.json({ message: 'No new newsletters found', digest: null });
     }
     console.log(`[${req.user.email}] Found ${rawNewsletters.length} newsletters, curating...`);
-    const digest = await curateNewsletter(rawNewsletters, sources);
+    const flavor = req.user.flavor || 'digestino';
+    const digest = await curateNewsletter(rawNewsletters, sources, flavor);
     db.saveDigest(userId, digest);
     // Send email in background
     sendDigestEmail(digest, req.user.email).catch(err => console.error('Email error:', err));
@@ -263,7 +268,7 @@ app.post('/api/weekly/generate', requireAuth, async (req, res) => {
     if (dailyDigests.length === 0) {
       return res.status(400).json({ error: 'No daily digests found from the past 7 days' });
     }
-    const result = await curateWeeklyDigest(dailyDigests);
+    const result = await curateWeeklyDigest(dailyDigests, req.user.flavor || 'digestino');
     if (!result) {
       return res.status(500).json({ error: 'Weekly curation failed' });
     }
@@ -339,7 +344,7 @@ cron.schedule('0 * * * *', async () => {
       console.log(`[Cron] Fetching for ${user.email}...`);
       const rawNewsletters = await fetchNewsletters(sources, tokens);
       if (rawNewsletters.length > 0) {
-        const digest = await curateNewsletter(rawNewsletters, sources);
+        const digest = await curateNewsletter(rawNewsletters, sources, user.flavor || 'digestino');
         db.saveDigest(user.id, digest);
         await sendDigestEmail(digest, user.email);
         console.log(`[Cron] Daily digest created for ${user.email}`);
@@ -363,7 +368,7 @@ cron.schedule('0 9 * * 0', async () => {
       const dailyDigests = db.getRecentDailyDigests(user.id, 7);
       if (dailyDigests.length === 0) continue;
 
-      const result = await curateWeeklyDigest(dailyDigests);
+      const result = await curateWeeklyDigest(dailyDigests, user.flavor || 'digestino');
       if (result) {
         db.saveWeeklyDigest(user.id, result.weekStart, result.weekEnd, result.digest);
         await sendWeeklyDigestEmail(result.digest, user.email);

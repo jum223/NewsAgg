@@ -542,6 +542,65 @@ body {
   font-size: 13px;
 }
 
+.source-min-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.source-min-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.source-min-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 8px;
+}
+
+.stepper-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  color: var(--brand);
+  background: var(--brand-light);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.stepper-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 14px;
+  text-align: center;
+  line-height: 1;
+}
+
 /* ─── Newsletter Recommendations ───────────────── */
 
 .recommendations-section {

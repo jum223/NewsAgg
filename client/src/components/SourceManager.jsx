@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Mail, ExternalLink, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Mail, ExternalLink, Sparkles, Minus } from 'lucide-react';
+
+const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 const RECOMMENDATIONS = {
   digestino: [
@@ -68,7 +70,7 @@ const RECOMMENDATIONS = {
   ],
 };
 
-export default function SourceManager({ sources, onAdd, onRemove }) {
+export default function SourceManager({ sources, onAdd, onRemove, onUpdateSource, token }) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -92,6 +94,20 @@ export default function SourceManager({ sources, onAdd, onRemove }) {
     const nameToUse = rec.name;
     // Pre-fill the form so user can enter the email themselves
     setName(nameToUse);
+  };
+
+  const handleMinStoriesChange = async (source, delta) => {
+    const current = source.min_stories || 0;
+    const next = Math.max(0, Math.min(2, current + delta));
+    if (next === current) return;
+    // Optimistic update via parent callback
+    onUpdateSource(source.id, { min_stories: next });
+    // Persist to server
+    await fetch(`${API}/api/sources/${source.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ min_stories: next }),
+    });
   };
 
   return (
@@ -145,6 +161,28 @@ export default function SourceManager({ sources, onAdd, onRemove }) {
               <div className="source-info">
                 <span className="source-name">{source.name}</span>
                 <span className="source-email">{source.email}</span>
+              </div>
+              <div className="source-min-control">
+                <span className="source-min-label">Min stories</span>
+                <div className="source-min-stepper">
+                  <button
+                    className="stepper-btn"
+                    onClick={() => handleMinStoriesChange(source, -1)}
+                    disabled={(source.min_stories || 0) === 0}
+                    title="Decrease minimum"
+                  >
+                    <Minus size={12} />
+                  </button>
+                  <span className="stepper-value">{source.min_stories || 0}</span>
+                  <button
+                    className="stepper-btn"
+                    onClick={() => handleMinStoriesChange(source, +1)}
+                    disabled={(source.min_stories || 0) === 2}
+                    title="Increase minimum"
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
               </div>
               <button
                 className="btn-icon danger"

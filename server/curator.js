@@ -29,6 +29,15 @@ async function curateNewsletter(rawNewsletters, sources, flavor = 'digestino') {
   const config = FLAVOR_CONFIG[flavor] || FLAVOR_CONFIG.digestino;
   const editionName = flavor === 'digestina' ? 'The Digestina' : 'The Digestino';
 
+  // Build a map of sourceEmail → min_stories from the sources config
+  const sourceMinMap = {};
+  for (const s of (sources || [])) {
+    if (s.min_stories > 0) {
+      sourceMinMap[s.email.toLowerCase()] = { name: s.name, min: s.min_stories };
+    }
+  }
+  const guaranteedSources = Object.values(sourceMinMap);
+
   const contentSummary = rawNewsletters.map((nl, i) => {
     const storySummaries = nl.stories.map((s, j) => `  Story ${j + 1}: "${s.title}" - ${s.content.slice(0, 500)}`).join('\n');
     const snippetSummaries = nl.snippets.slice(0, 5).map((s, j) => `  Snippet ${j + 1}: ${s}`).join('\n');
@@ -54,6 +63,10 @@ ${nl.fullText.slice(0, 1000)}
 `;
   }).join('\n\n');
 
+  const guaranteeBlock = guaranteedSources.length > 0
+    ? `\nSOURCE GUARANTEES (you MUST follow these):\n${guaranteedSources.map(g => `- Include at least ${g.min} top stor${g.min === 1 ? 'y' : 'ies'} from "${g.name}"`).join('\n')}\n`
+    : '';
+
   const prompt = `You are curating ${editionName}, a daily newsletter digest.
 
 The reader is interested in: ${config.readerProfile}
@@ -66,7 +79,7 @@ ${contentSummary}
 
 Create a curated daily digest following these STRICT rules:
 
-1. **TOP STORIES** (max 4): Select the most important, interesting stories. Each must have:
+1. **TOP STORIES** (max 6): Select the most important, interesting stories. Each must have:
    - A compelling headline written in the edition's tone
    - A 2-3 sentence summary capturing the key insight
    - The source name
@@ -78,7 +91,7 @@ Create a curated daily digest following these STRICT rules:
    - A brief description of what the visual shows
    - The image URL (if available)
    - The source
-
+${guaranteeBlock}
 IMPORTANT:
 - Do NOT meet maximums for the sake of it — only include genuinely relevant, interesting content
 - NEVER repeat similar stories or themes across sections
@@ -150,7 +163,7 @@ function createFallbackDigest(rawNewsletters, flavor = 'digestino') {
 
   for (const nl of rawNewsletters) {
     for (const story of nl.stories) {
-      if (topStories.length >= 4) break;
+      if (topStories.length >= 6) break;
       const titleLower = story.title.toLowerCase();
       if (seenTitles.has(titleLower)) continue;
       seenTitles.add(titleLower);

@@ -208,6 +208,15 @@ app.delete('/api/sources/:id', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+app.patch('/api/sources/:id', requireAuth, (req, res) => {
+  const { min_stories } = req.body;
+  if (min_stories !== undefined) {
+    const clamped = Math.max(0, Math.min(2, parseInt(min_stories, 10) || 0));
+    db.updateSource(req.user.id, req.params.id, { min_stories: clamped });
+  }
+  res.json({ success: true });
+});
+
 // ═══════════════════════════════════════════════════════════════
 // NEWSLETTER ROUTES (requires auth)
 // ═══════════════════════════════════════════════════════════════

@@ -152,6 +152,10 @@ export default function App() {
     setSources(prev => prev.filter(s => s.id !== id));
   };
 
+  const updateSource = (id, fields) => {
+    setSources(prev => prev.map(s => s.id === id ? { ...s, ...fields } : s));
+  };
+
   const fetchDigest = async () => {
     setFetching(true);
     setError(null);
@@ -225,6 +229,8 @@ export default function App() {
             sources={sources}
             onAdd={addSource}
             onRemove={removeSource}
+            onUpdateSource={updateSource}
+            token={token}
           />
         )}
 

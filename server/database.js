@@ -131,6 +131,7 @@ migrateLegacyUserScopedTables();
 
 const columnMigrations = [
   { table: 'users', column: 'flavor', sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
+  { table: 'sources', column: 'min_stories', sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
 ];
 
 for (const { table, column, sql } of columnMigrations) {
@@ -234,6 +235,21 @@ function removeSource(userId, id) {
   db.prepare('DELETE FROM sources WHERE id = ? AND user_id = ?').run(id, userId);
 }
 
+function updateSource(userId, id, fields) {
+  const allowed = ['min_stories'];
+  const updates = [];
+  const values = [];
+  for (const key of allowed) {
+    if (fields[key] !== undefined) {
+      updates.push(`${key} = ?`);
+      values.push(fields[key]);
+    }
+  }
+  if (updates.length === 0) return;
+  values.push(id, userId);
+  db.prepare(`UPDATE sources SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
+}
+
 // ─── Tokens (user-scoped) ─────────────────────────────────────
 
 function saveTokens(userId, tokens) {
@@ -329,7 +345,7 @@ module.exports = {
   // Invite codes
   generateInviteCode, validateInviteCode, redeemInviteCode, getInviteCodes,
   // Sources
-  getSources, addSource, removeSource,
+  getSources, addSource, removeSource, updateSource,
   // Tokens
   saveTokens, getTokens,
   // Digests

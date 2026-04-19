@@ -240,6 +240,7 @@ export default function App() {
             onFetch={fetchDigest}
             fetching={fetching}
             hasSources={sources.length > 0}
+            token={token}
           />
         )}
 

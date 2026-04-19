@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const crypto = require('crypto');
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -144,6 +145,18 @@ Return ONLY valid JSON, no markdown formatting or code blocks.`;
     const digest = JSON.parse(jsonStr);
     digest.date = new Date().toISOString();
     digest.flavor = flavor;
+
+    // Stamp each story with a stable ID (hash of headline+source, 12 hex chars)
+    if (Array.isArray(digest.topStories)) {
+      digest.topStories = digest.topStories.map(story => ({
+        ...story,
+        story_id: crypto.createHash('sha256')
+          .update(`${story.headline}|${story.source}`)
+          .digest('hex')
+          .slice(0, 12),
+      }));
+    }
+
     digest.sourcesUsed = rawNewsletters.map(nl => ({
       name: nl.sourceName,
       email: nl.sourceEmail,

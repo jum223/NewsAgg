@@ -55,8 +55,25 @@ function formatEmailDate(isoStr) {
   });
 }
 
-function buildEmailHtml(digest, appUrl) {
+function buildRatingLinks(story, userId, digestId, appUrl) {
+  const base = appUrl || 'https://newsagg-production.up.railway.app';
+  const params = (r) => new URLSearchParams({
+    sid: story.story_id || '',
+    uid: userId,
+    did: digestId || '',
+    r,
+    topic: story.category || '',
+    ss: story.source || '',
+  }).toString();
+  return {
+    up:   `${base}/rate?${params('up')}`,
+    down: `${base}/rate?${params('down')}`,
+  };
+}
+
+function buildEmailHtml(digest, appUrl, userId) {
   const { topStories = [], quickHits = [], visuals = [], digestSummary, sourcesUsed = [], date, flavor } = digest;
+  const digestId = digest.id || '';
   const formattedDate = formatEmailDate(date);
   const viewUrl = appUrl || 'https://newsagg-production.up.railway.app';
   const f = FLAVOR_EMAIL[flavor] || FLAVOR_EMAIL.digestino;
@@ -64,6 +81,25 @@ function buildEmailHtml(digest, appUrl) {
   const storiesHtml = topStories.map(story => {
     const emoji = categoryEmoji[story.category] || '📰';
     const color = categoryColor[story.category] || '#6b7280';
+    const links = story.story_id && userId
+      ? buildRatingLinks(story, userId, digestId, appUrl)
+      : null;
+    const ratingRow = links ? `
+          <div style="margin-top:16px; padding-top:14px; border-top:1px solid #f0ede8;">
+            <div style="font-size:11px; font-weight:600; color:#9a9a9a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+              Goodie or Baddie?
+            </div>
+            <table cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding-right:8px;">
+                  <a href="${links.up}" style="display:inline-block; padding:7px 16px; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; border-radius:20px; font-size:13px; font-weight:600; text-decoration:none;">👍 Goodie</a>
+                </td>
+                <td>
+                  <a href="${links.down}" style="display:inline-block; padding:7px 16px; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:20px; font-size:13px; font-weight:600; text-decoration:none;">👎 Baddie</a>
+                </td>
+              </tr>
+            </table>
+          </div>` : '';
     return `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px; border:1px solid #e8e5e0; border-radius:12px; overflow:hidden; background:#ffffff;">
       <tr>
@@ -81,6 +117,7 @@ function buildEmailHtml(digest, appUrl) {
             <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${color}; margin-right:6px; vertical-align:middle;"></span>
             ${escapeHtml(story.source)}
           </div>
+          ${ratingRow}
         </td>
       </tr>
     </table>`;
@@ -151,7 +188,18 @@ function buildEmailHtml(digest, appUrl) {
             </td>
           </tr>
 
-          <tr><td height="32"></td></tr>
+          <tr><td height="20"></td></tr>
+
+          <!-- Training banner -->
+          <tr>
+            <td style="background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:12px 18px; text-align:center;">
+              <span style="font-size:14px; color:#92400e; font-weight:600;">
+                ⚠️ Rate each story to get smarter digests! Your Goodies &amp; Baddies train your recommendation engine. ⚠️
+              </span>
+            </td>
+          </tr>
+
+          <tr><td height="24"></td></tr>
 
           ${topStories.length > 0 ? `
           <!-- Top Stories -->
@@ -226,8 +274,9 @@ function escapeHtml(str) {
  * Send daily digest email.
  * @param {object} digest — the curated digest content
  * @param {string} recipientEmail — the user's email address
+ * @param {number} userId — the user's DB id (for rating links)
  */
-async function sendDigestEmail(digest, recipientEmail) {
+async function sendDigestEmail(digest, recipientEmail, userId) {
   if (!process.env.RESEND_API_KEY) {
     console.log('Email skipped: RESEND_API_KEY not set');
     return;
@@ -239,7 +288,7 @@ async function sendDigestEmail(digest, recipientEmail) {
   }
 
   const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
-  const html = buildEmailHtml(digest, appUrl);
+  const html = buildEmailHtml(digest, appUrl, userId);
   const dateLabel = formatEmailDate(digest.date);
   const f = FLAVOR_EMAIL[digest.flavor] || FLAVOR_EMAIL.digestino;
   const fromDefault = `${f.name} <onboarding@resend.dev>`;

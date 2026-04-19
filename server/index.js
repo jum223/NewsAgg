@@ -240,9 +240,11 @@ app.post('/api/newsletters/fetch', requireAuth, async (req, res) => {
     console.log(`[${req.user.email}] Found ${rawNewsletters.length} newsletters, curating...`);
     const flavor = req.user.flavor || 'digestino';
     const digest = await curateNewsletter(rawNewsletters, sources, flavor);
-    db.saveDigest(userId, digest);
+    const savedDigest = db.saveDigest(userId, digest);
+    // Attach the DB id so rating links work
+    const digestWithId = { ...digest, id: savedDigest?.id };
     // Send email in background
-    sendDigestEmail(digest, req.user.email).catch(err => console.error('Email error:', err));
+    sendDigestEmail(digestWithId, req.user.email, userId).catch(err => console.error('Email error:', err));
     res.json({ message: 'Newsletter curated successfully', digest });
   } catch (err) {
     console.error('Fetch error:', err);
@@ -306,6 +308,97 @@ app.get('/api/weekly/:id', requireAuth, (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// STORY RATING ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+// Web version — authenticated POST
+app.post('/api/rate', requireAuth, (req, res) => {
+  const { story_id, digest_id, rating, story_topic, story_source } = req.body;
+  if (!story_id) return res.status(400).json({ error: 'story_id required' });
+  // rating=null means toggle off (remove)
+  const validRating = rating === 'up' || rating === 'down' ? rating : null;
+  const saved = db.saveRating({
+    storyId: story_id,
+    userId: req.user.id,
+    digestId: digest_id ?? null,
+    rating: validRating,
+    source: 'web',
+    storyTopic: story_topic ?? null,
+    storySource: story_source ?? null,
+  });
+  res.json({ success: true, rating: saved?.rating ?? null });
+});
+
+// Email version — unauthenticated GET link, returns a confirmation page
+app.get('/rate', (req, res) => {
+  const { sid, uid, did, r, topic, ss } = req.query;
+  if (!sid || !uid || !r) {
+    return res.status(400).send('<p>Invalid rating link.</p>');
+  }
+  const validRating = r === 'up' || r === 'down' ? r : null;
+  if (!validRating) return res.status(400).send('<p>Invalid rating value.</p>');
+
+  try {
+    db.saveRating({
+      storyId: sid,
+      userId: parseInt(uid, 10),
+      digestId: did ? parseInt(did, 10) : null,
+      rating: validRating,
+      source: 'email',
+      storyTopic: topic ?? null,
+      storySource: ss ?? null,
+    });
+  } catch (err) {
+    console.error('Email rating error:', err.message);
+  }
+
+  const emoji = validRating === 'up' ? '👍' : '👎';
+  const label = validRating === 'up' ? 'Goodie logged!' : 'Baddie noted.';
+  const msg = validRating === 'up'
+    ? "We'll surface more of this kind of content in future digests."
+    : "We'll deprioritize similar content going forward.";
+  const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${label}</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+           background: #faf9f7; display: flex; align-items: center; justify-content: center;
+           min-height: 100vh; }
+    .card { background: #fff; border: 1px solid #e8e5e0; border-radius: 16px;
+            padding: 48px 40px; max-width: 420px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    .emoji { font-size: 52px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; }
+    p { font-size: 15px; color: #6b6b6b; line-height: 1.6; margin-bottom: 28px; }
+    a { display: inline-block; padding: 12px 28px; background: #c2410c; color: #fff;
+        text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">${emoji}</div>
+    <h1>${label}</h1>
+    <p>${msg}</p>
+    <a href="${appUrl}">Back to your digest →</a>
+  </div>
+</body>
+</html>`);
+});
+
+// Return existing ratings for a digest (used by web UI to restore state on load)
+app.get('/api/rate/digest/:digestId', requireAuth, (req, res) => {
+  const ratings = db.getRatingsByDigest(req.user.id, req.params.digestId);
+  // Convert to { [story_id]: 'up'|'down' } map for easy lookup
+  const map = {};
+  for (const r of ratings) map[r.story_id] = r.rating;
+  res.json(map);
+});
+
+// ═══════════════════════════════════════════════════════════════
 // SPA CATCH-ALL
 // ═══════════════════════════════════════════════════════════════
 
@@ -354,8 +447,9 @@ cron.schedule('0 * * * *', async () => {
       const rawNewsletters = await fetchNewsletters(sources, tokens);
       if (rawNewsletters.length > 0) {
         const digest = await curateNewsletter(rawNewsletters, sources, user.flavor || 'digestino');
-        db.saveDigest(user.id, digest);
-        await sendDigestEmail(digest, user.email);
+        const savedDigest = db.saveDigest(user.id, digest);
+        const digestWithId = { ...digest, id: savedDigest?.id };
+        await sendDigestEmail(digestWithId, user.email, user.id);
         console.log(`[Cron] Daily digest created for ${user.email}`);
       }
     } catch (err) {

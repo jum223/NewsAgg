@@ -125,6 +125,25 @@ db.exec(`
 
 migrateLegacyUserScopedTables();
 
+// ─── Story Ratings table ──────────────────────────────────────
+// Created separately (not in USER_SCOPED_TABLES) because it has a composite
+// unique key across user_id+story_id rather than just user_id.
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS story_ratings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    story_id   TEXT NOT NULL,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    digest_id  INTEGER,
+    rating     TEXT NOT NULL CHECK(rating IN ('up','down')),
+    source     TEXT NOT NULL DEFAULT 'web' CHECK(source IN ('web','email')),
+    story_topic   TEXT,
+    story_source  TEXT,
+    rated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    UNIQUE(story_id, user_id)
+  );
+`);
+
 // ─── Migrations: additive column changes ──────────────────────
 // Safe to run every startup — ALTER TABLE is a no-op if column exists is
 // simulated via try/catch since SQLite has no IF NOT EXISTS for columns.
@@ -272,7 +291,8 @@ function getTokens(userId) {
 
 function saveDigest(userId, digest) {
   const date = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  db.prepare('INSERT INTO digests (user_id, date, content) VALUES (?, ?, ?)').run(userId, date, JSON.stringify(digest));
+  const result = db.prepare('INSERT INTO digests (user_id, date, content) VALUES (?, ?, ?)').run(userId, date, JSON.stringify(digest));
+  return { id: result.lastInsertRowid };
 }
 
 function getLatestDigest(userId) {
@@ -338,6 +358,43 @@ function markMessageFetched(userId, messageId) {
   db.prepare('INSERT OR IGNORE INTO fetched_message_ids (user_id, message_id) VALUES (?, ?)').run(userId, messageId);
 }
 
+// ─── Story Ratings ────────────────────────────────────────────
+
+/**
+ * Upsert a story rating. Re-rating the same story overwrites the previous rating.
+ * Passing rating=null removes the rating (toggle off).
+ */
+function saveRating({ storyId, userId, digestId, rating, source, storyTopic, storySource }) {
+  if (rating === null) {
+    db.prepare('DELETE FROM story_ratings WHERE story_id = ? AND user_id = ?').run(storyId, userId);
+    return null;
+  }
+  db.prepare(`
+    INSERT INTO story_ratings (story_id, user_id, digest_id, rating, source, story_topic, story_source)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(story_id, user_id) DO UPDATE SET
+      rating       = excluded.rating,
+      digest_id    = excluded.digest_id,
+      source       = excluded.source,
+      story_topic  = excluded.story_topic,
+      story_source = excluded.story_source,
+      rated_at     = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  `).run(storyId, userId, digestId ?? null, rating, source || 'web', storyTopic ?? null, storySource ?? null);
+  return { storyId, userId, rating };
+}
+
+function getRatingsByDigest(userId, digestId) {
+  return db.prepare(
+    'SELECT story_id, rating FROM story_ratings WHERE user_id = ? AND digest_id = ?'
+  ).all(userId, digestId);
+}
+
+function getRatingByStory(userId, storyId) {
+  return db.prepare(
+    'SELECT * FROM story_ratings WHERE user_id = ? AND story_id = ?'
+  ).get(userId, storyId);
+}
+
 module.exports = {
   // Users
   findUserByGoogleId, findUserByEmail, findUserById,
@@ -354,4 +411,6 @@ module.exports = {
   getRecentDailyDigests, saveWeeklyDigest, getLatestWeeklyDigest, getWeeklyDigests, getWeeklyDigest,
   // Message tracking
   isMessageFetched, markMessageFetched,
+  // Story ratings
+  saveRating, getRatingsByDigest, getRatingByStory,
 };

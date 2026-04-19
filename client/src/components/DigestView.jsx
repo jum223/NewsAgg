@@ -108,6 +108,7 @@ function StoryRating({ story, digestId, token }) {
           rating: next,
           story_topic: story.category || null,
           story_source: story.source || null,
+          story_headline: story.headline || null,
         }),
       });
     } catch (err) {

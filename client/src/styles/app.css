@@ -1296,6 +1296,206 @@ body {
 
 .version-content { flex: 1; min-width: 0; }
 
+/* ─── History Tabs ──────────────────────────────── */
+
+.history-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.history-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.history-tab:hover {
+  color: var(--text);
+  background: var(--bg-card);
+}
+
+.history-tab.active {
+  background: var(--bg-card);
+  color: var(--brand);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Ratings History View ───────────────────────── */
+
+.ratings-history {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ratings-summary {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+}
+
+.ratings-summary-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ratings-summary-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+}
+
+.ratings-stat-icon { flex-shrink: 0; }
+.ratings-stat-icon.up   { color: #16a34a; }
+.ratings-stat-icon.down { color: #dc2626; }
+.ratings-stat-icon.total { color: var(--brand); }
+
+.ratings-stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.ratings-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+/* Filter pills */
+.ratings-filter-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ratings-filter-pill {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ratings-filter-pill:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.ratings-filter-pill.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+/* Individual rating items */
+.ratings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rating-history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  transition: box-shadow 0.15s;
+}
+
+.rating-history-item:hover { box-shadow: var(--shadow-sm); }
+
+.rating-history-item.up   { border-left: 3px solid #16a34a; }
+.rating-history-item.down { border-left: 3px solid #dc2626; }
+
+.rating-history-badge {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.rating-history-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rating-history-headline {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.rating-history-no-title {
+  color: var(--text-muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.rating-history-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rating-history-source {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rating-history-topic {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--brand);
+  background: var(--brand-light);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.rating-history-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
 /* ─── Weekly Digest ─────────────────────────────── */
 
 .weekly-page { max-width: 700px; margin: 0 auto; }

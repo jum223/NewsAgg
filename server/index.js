@@ -313,7 +313,7 @@ app.get('/api/weekly/:id', requireAuth, (req, res) => {
 
 // Web version — authenticated POST
 app.post('/api/rate', requireAuth, (req, res) => {
-  const { story_id, digest_id, rating, story_topic, story_source } = req.body;
+  const { story_id, digest_id, rating, story_topic, story_source, story_headline } = req.body;
   if (!story_id) return res.status(400).json({ error: 'story_id required' });
   // rating=null means toggle off (remove)
   const validRating = rating === 'up' || rating === 'down' ? rating : null;
@@ -325,8 +325,16 @@ app.post('/api/rate', requireAuth, (req, res) => {
     source: 'web',
     storyTopic: story_topic ?? null,
     storySource: story_source ?? null,
+    storyHeadline: story_headline ?? null,
   });
   res.json({ success: true, rating: saved?.rating ?? null });
+});
+
+// All ratings for the current user (for the Ratings history view)
+app.get('/api/ratings', requireAuth, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+  const offset = parseInt(req.query.offset, 10) || 0;
+  res.json(db.getRatings(req.user.id, { limit, offset }));
 });
 
 // Email version — unauthenticated GET link, returns a confirmation page

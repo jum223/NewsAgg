@@ -149,8 +149,9 @@ db.exec(`
 // simulated via try/catch since SQLite has no IF NOT EXISTS for columns.
 
 const columnMigrations = [
-  { table: 'users', column: 'flavor', sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
-  { table: 'sources', column: 'min_stories', sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
+  { table: 'users',         column: 'flavor',         sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
+  { table: 'sources',       column: 'min_stories',    sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
+  { table: 'story_ratings', column: 'story_headline', sql: "ALTER TABLE story_ratings ADD COLUMN story_headline TEXT DEFAULT NULL" },
 ];
 
 for (const { table, column, sql } of columnMigrations) {
@@ -364,22 +365,23 @@ function markMessageFetched(userId, messageId) {
  * Upsert a story rating. Re-rating the same story overwrites the previous rating.
  * Passing rating=null removes the rating (toggle off).
  */
-function saveRating({ storyId, userId, digestId, rating, source, storyTopic, storySource }) {
+function saveRating({ storyId, userId, digestId, rating, source, storyTopic, storySource, storyHeadline }) {
   if (rating === null) {
     db.prepare('DELETE FROM story_ratings WHERE story_id = ? AND user_id = ?').run(storyId, userId);
     return null;
   }
   db.prepare(`
-    INSERT INTO story_ratings (story_id, user_id, digest_id, rating, source, story_topic, story_source)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO story_ratings (story_id, user_id, digest_id, rating, source, story_topic, story_source, story_headline)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(story_id, user_id) DO UPDATE SET
-      rating       = excluded.rating,
-      digest_id    = excluded.digest_id,
-      source       = excluded.source,
-      story_topic  = excluded.story_topic,
-      story_source = excluded.story_source,
-      rated_at     = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-  `).run(storyId, userId, digestId ?? null, rating, source || 'web', storyTopic ?? null, storySource ?? null);
+      rating         = excluded.rating,
+      digest_id      = excluded.digest_id,
+      source         = excluded.source,
+      story_topic    = excluded.story_topic,
+      story_source   = excluded.story_source,
+      story_headline = excluded.story_headline,
+      rated_at       = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  `).run(storyId, userId, digestId ?? null, rating, source || 'web', storyTopic ?? null, storySource ?? null, storyHeadline ?? null);
   return { storyId, userId, rating };
 }
 
@@ -387,6 +389,16 @@ function getRatingsByDigest(userId, digestId) {
   return db.prepare(
     'SELECT story_id, rating FROM story_ratings WHERE user_id = ? AND digest_id = ?'
   ).all(userId, digestId);
+}
+
+function getRatings(userId, { limit = 50, offset = 0 } = {}) {
+  return db.prepare(`
+    SELECT story_id, digest_id, rating, source, story_topic, story_source, story_headline, rated_at
+    FROM story_ratings
+    WHERE user_id = ?
+    ORDER BY rated_at DESC
+    LIMIT ? OFFSET ?
+  `).all(userId, limit, offset);
 }
 
 function getRatingByStory(userId, storyId) {
@@ -412,5 +424,5 @@ module.exports = {
   // Message tracking
   isMessageFetched, markMessageFetched,
   // Story ratings
-  saveRating, getRatingsByDigest, getRatingByStory,
+  saveRating, getRatingsByDigest, getRatings, getRatingByStory,
 };

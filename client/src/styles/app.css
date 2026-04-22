@@ -241,6 +241,67 @@ body {
 .fetch-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .fetch-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* ─── Gmail Invalid Banner (top of app) ────────── */
+
+.gmail-invalid-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fefce8;
+  border: 1.5px solid #fbbf24;
+  color: #92400e;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gmail-invalid-reconnect {
+  flex-shrink: 0;
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.gmail-invalid-reconnect:hover { background: #d97706; }
+
+/* ─── Gmail Reconnect Alert (in Settings) ───────── */
+
+.gmail-reconnect-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #fefce8;
+  border: 1.5px solid #fbbf24;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+
+.gmail-reconnect-alert-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+  float: left;
+  margin-right: 8px;
+  margin-top: 2px;
+}
+
+.gmail-reconnect-btn {
+  align-self: flex-start;
+}
+
 /* ─── Error Banner ──────────────────────────────── */
 
 .error-banner {

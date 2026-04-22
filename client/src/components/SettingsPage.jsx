@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Save, CheckCircle, LogOut, Sparkles } from 'lucide-react';
+import { Clock, Save, CheckCircle, LogOut, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
@@ -13,6 +13,22 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
   const [flavor, setFlavor] = useState(user.flavor || 'digestino');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const handleReconnectGmail = async () => {
+    setReconnecting(true);
+    try {
+      const res = await fetch(`${API}/auth/google/reconnect`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch (err) {
+      console.error('Reconnect error:', err);
+      setReconnecting(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -113,11 +129,32 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
           </div>
         </div>
         <div className="settings-row" style={{ marginTop: 16 }}>
-          <span className="settings-label">Gmail connected</span>
-          <span className={`settings-badge ${user.gmail_connected ? 'connected' : 'disconnected'}`}>
-            {user.gmail_connected ? 'Connected' : 'Not connected'}
-          </span>
+          <span className="settings-label">Gmail</span>
+          {user.gmail_token_invalid ? (
+            <span className="settings-badge disconnected">Token expired</span>
+          ) : (
+            <span className={`settings-badge ${user.gmail_connected ? 'connected' : 'disconnected'}`}>
+              {user.gmail_connected ? 'Connected' : 'Not connected'}
+            </span>
+          )}
         </div>
+
+        {user.gmail_token_invalid && (
+          <div className="gmail-reconnect-alert">
+            <AlertTriangle size={16} className="gmail-reconnect-alert-icon" />
+            <div>
+              <strong>Gmail access expired.</strong> Your daily digest stopped working because Google revoked access to your inbox. This happens after long inactivity or a password change.
+            </div>
+            <button
+              className="btn btn-primary gmail-reconnect-btn"
+              onClick={handleReconnectGmail}
+              disabled={reconnecting}
+            >
+              <RefreshCw size={15} className={reconnecting ? 'spin' : ''} />
+              {reconnecting ? 'Redirecting...' : 'Reconnect Gmail'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="settings-section settings-danger">

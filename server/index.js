@@ -72,6 +72,16 @@ app.get('/auth/google/callback', async (req, res) => {
     let parsedState = {};
     try { parsedState = JSON.parse(state || '{}'); } catch {}
 
+    // Reconnect flow: look up by userId from state (token refresh for existing user)
+    if (parsedState.reconnect && parsedState.userId) {
+      const existingUser = db.findUserById(parsedState.userId);
+      if (!existingUser) return res.redirect(`${FRONTEND_URL || '/'}?auth=error`);
+      db.saveTokens(existingUser.id, tokens);
+      db.updateUser(existingUser.id, { gmail_token_invalid: 0 });
+      const jwt = signToken(db.findUserById(existingUser.id));
+      return res.redirect(`${FRONTEND_URL || '/'}?auth=success&token=${jwt}&reconnected=1`);
+    }
+
     // Check if user exists
     let user = db.findUserByGoogleId(userInfo.googleId);
 
@@ -108,12 +118,21 @@ app.get('/auth/google/callback', async (req, res) => {
       }
       console.log(`New user signed up: ${user.email} (admin: ${isFirst})`);
     } else {
-      // Update profile info on login
+      // Returning user — check if this is a Gmail reconnect
+      if (parsedState.reconnect) {
+        // Just refresh tokens and clear the invalid flag; don't change anything else
+        db.saveTokens(user.id, tokens);
+        db.updateUser(user.id, { gmail_token_invalid: 0 });
+        const jwt = signToken(db.findUserById(user.id));
+        return res.redirect(`${FRONTEND_URL || '/'}?auth=success&token=${jwt}&reconnected=1`);
+      }
+      // Normal login — update profile info
       db.updateUser(user.id, { name: userInfo.name, avatar_url: userInfo.picture });
     }
 
-    // Save Gmail tokens for this user
+    // Save Gmail tokens for this user and clear any invalid flag
     db.saveTokens(user.id, tokens);
+    db.updateUser(user.id, { gmail_token_invalid: 0 });
 
     // Generate JWT
     const jwt = signToken(user);
@@ -128,7 +147,7 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // Get current user info (requires auth)
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  const { id, email, name, avatar_url, daily_cron_hour, is_admin, flavor, created_at } = req.user;
+  const { id, email, name, avatar_url, daily_cron_hour, is_admin, flavor, created_at, gmail_token_invalid } = req.user;
   const tokens = db.getTokens(id);
   res.json({
     id, email, name, avatar_url, daily_cron_hour,
@@ -136,7 +155,15 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
     flavor: flavor || null,
     created_at,
     gmail_connected: !!tokens,
+    gmail_token_invalid: !!gmail_token_invalid,
   });
+});
+
+// Start a Gmail reconnect OAuth flow (for logged-in users with expired tokens)
+app.post('/auth/google/reconnect', requireAuth, (req, res) => {
+  const state = JSON.stringify({ reconnect: true, userId: req.user.id });
+  const url = getAuthUrl(state);
+  res.json({ url });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -462,6 +489,11 @@ cron.schedule('0 * * * *', async () => {
       }
     } catch (err) {
       console.error(`[Cron] Failed for ${user.email}:`, err.message);
+      // If the token is revoked/expired, flag the account so the UI can prompt reconnect
+      if (err.message?.includes('invalid_grant') || err.message?.includes('Token has been expired')) {
+        db.updateUser(user.id, { gmail_token_invalid: 1 });
+        console.warn(`[Cron] Gmail token flagged as invalid for ${user.email} — user must reconnect`);
+      }
     }
   }
 }, { timezone: 'America/New_York' });

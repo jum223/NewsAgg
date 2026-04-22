@@ -149,9 +149,10 @@ db.exec(`
 // simulated via try/catch since SQLite has no IF NOT EXISTS for columns.
 
 const columnMigrations = [
-  { table: 'users',         column: 'flavor',         sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
-  { table: 'sources',       column: 'min_stories',    sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
-  { table: 'story_ratings', column: 'story_headline', sql: "ALTER TABLE story_ratings ADD COLUMN story_headline TEXT DEFAULT NULL" },
+  { table: 'users',         column: 'flavor',              sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
+  { table: 'sources',       column: 'min_stories',         sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
+  { table: 'story_ratings', column: 'story_headline',      sql: "ALTER TABLE story_ratings ADD COLUMN story_headline TEXT DEFAULT NULL" },
+  { table: 'users',         column: 'gmail_token_invalid', sql: "ALTER TABLE users ADD COLUMN gmail_token_invalid INTEGER DEFAULT 0" },
 ];
 
 for (const { table, column, sql } of columnMigrations) {
@@ -188,7 +189,7 @@ function createUser({ googleId, email, name, avatarUrl, isAdmin = false, flavor 
 }
 
 function updateUser(id, fields) {
-  const allowed = ['name', 'avatar_url', 'daily_cron_hour', 'flavor'];
+  const allowed = ['name', 'avatar_url', 'daily_cron_hour', 'flavor', 'gmail_token_invalid'];
   const updates = [];
   const values = [];
   for (const key of allowed) {

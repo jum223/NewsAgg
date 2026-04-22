@@ -43,7 +43,8 @@ export default function App() {
     if (authResult === 'success' && newToken) {
       localStorage.setItem('digestino_token', newToken);
       setToken(newToken);
-      window.history.replaceState({}, '', '/');
+      const wasReconnect = params.get('reconnected') === '1';
+      window.history.replaceState({}, '', wasReconnect ? '/?reconnected=1' : '/');
     } else if (authResult === 'no-invite') {
       setAuthError('An invite code is required to sign up. Switch to the Sign Up tab and enter your code.');
       window.history.replaceState({}, '', '/');
@@ -217,6 +218,15 @@ export default function App() {
       />
 
       <main className="main-content">
+        {user.gmail_token_invalid && (
+          <div className="gmail-invalid-banner">
+            <span>⚠️ Your Gmail access has expired — your digest stopped working.</span>
+            <button className="gmail-invalid-reconnect" onClick={() => setView('settings')}>
+              Fix in Settings →
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="error-banner">
             <span>{error}</span>

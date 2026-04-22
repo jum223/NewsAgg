@@ -1890,6 +1890,21 @@ body {
   text-align: center;
 }
 
+.login-legal-links {
+  margin-top: 10px;
+}
+
+.login-legal-links a {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+
+.login-legal-links a:hover {
+  color: var(--brand);
+}
+
 /* ─── User Menu (Header) ──────────────────────── */
 
 .header-actions {

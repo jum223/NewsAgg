@@ -57,6 +57,149 @@ app.post('/auth/google', (req, res) => {
   res.json({ url });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// PUBLIC LEGAL PAGES (no auth — required for Google verification)
+// ═══════════════════════════════════════════════════════════════
+
+function legalPage(title, bodyHtml) {
+  const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — The Digestino</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+           background: #faf9f7; color: #1a1a1a; line-height: 1.7; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 60px 24px 80px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 48px; text-decoration: none; }
+    .brand-dot { width: 36px; height: 36px; border-radius: 10px; background: #c2410c;
+                 display: flex; align-items: center; justify-content: center;
+                 color: #fff; font-weight: 800; font-size: 18px; }
+    .brand-name { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+    h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+    .updated { font-size: 14px; color: #9a9a9a; margin-bottom: 40px; }
+    h2 { font-size: 18px; font-weight: 700; margin: 36px 0 12px; color: #1a1a1a; }
+    p, li { font-size: 15px; color: #4b4b4b; margin-bottom: 12px; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; }
+    a { color: #c2410c; }
+    .footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid #e8e5e0;
+              font-size: 13px; color: #9a9a9a; }
+    .footer a { color: #9a9a9a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="brand" href="${appUrl}">
+      <div class="brand-dot">d</div>
+      <span class="brand-name">The Digestino</span>
+    </a>
+    ${bodyHtml}
+    <div class="footer">
+      <a href="${appUrl}/privacy">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="${appUrl}/terms">Terms of Service</a> &nbsp;·&nbsp;
+      <a href="${appUrl}">Back to app</a>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+app.get('/privacy', (req, res) => {
+  const lastUpdated = 'April 22, 2026';
+  const contactEmail = 'juanmozosn19@gmail.com';
+  const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
+
+  res.send(legalPage('Privacy Policy', `
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: ${lastUpdated}</p>
+
+    <p>The Digestino ("we", "our", or "us") is a personal newsletter aggregation service that connects to your Gmail inbox, reads newsletters from sources you choose, and uses AI to curate a single daily digest. This policy explains what data we collect, how we use it, and your rights.</p>
+
+    <h2>1. Information We Collect</h2>
+    <p>When you sign in with Google, we collect:</p>
+    <ul>
+      <li><strong>Google account information</strong> — your name, email address, and profile picture, provided by Google during sign-in.</li>
+      <li><strong>Gmail messages</strong> — we access your Gmail inbox using read-only permission (<code>gmail.readonly</code>) solely to find and read newsletter emails from sources you have explicitly added. We do not read, store, or process any other emails in your inbox.</li>
+      <li><strong>Usage data</strong> — your newsletter source preferences, digest schedule settings, and story ratings ("Goodies" and "Baddies") that you provide within the app.</li>
+    </ul>
+
+    <h2>2. How We Use Your Information</h2>
+    <ul>
+      <li>To authenticate you and maintain your session.</li>
+      <li>To fetch newsletter emails from sources you have chosen and generate your daily curated digest.</li>
+      <li>To send your daily and weekly digest emails to your address.</li>
+      <li>To improve digest quality over time using your story ratings.</li>
+    </ul>
+    <p>We do <strong>not</strong> sell, rent, or share your personal information with third parties for marketing purposes.</p>
+
+    <h2>3. Third-Party Services</h2>
+    <p>We use the following third-party services to operate The Digestino:</p>
+    <ul>
+      <li><strong>Google OAuth 2.0</strong> — for authentication and Gmail access. Governed by <a href="https://policies.google.com/privacy" target="_blank">Google's Privacy Policy</a>.</li>
+      <li><strong>Anthropic Claude</strong> — newsletter content is sent to Anthropic's API to generate curated summaries. No personal account information is included. Governed by <a href="https://www.anthropic.com/privacy" target="_blank">Anthropic's Privacy Policy</a>.</li>
+      <li><strong>Resend</strong> — used to deliver your daily digest emails. Governed by <a href="https://resend.com/legal/privacy-policy" target="_blank">Resend's Privacy Policy</a>.</li>
+      <li><strong>Railway</strong> — our hosting provider, where your data is stored securely. Governed by <a href="https://railway.app/legal/privacy" target="_blank">Railway's Privacy Policy</a>.</li>
+    </ul>
+
+    <h2>4. Data Retention</h2>
+    <p>We retain your account data and digest history for as long as your account is active. Newsletter email content is processed to generate digests and is not stored beyond what appears in your digest history. You may request deletion of your account and all associated data at any time by contacting us.</p>
+
+    <h2>5. Data Security</h2>
+    <p>Your Gmail OAuth tokens are stored securely and used solely to fetch newsletter emails on your behalf. We use industry-standard practices to protect your data. Access to your Gmail is limited to the <code>gmail.readonly</code> scope — we cannot read, modify, send, or delete your emails.</p>
+
+    <h2>6. Your Rights</h2>
+    <p>You may at any time:</p>
+    <ul>
+      <li>Revoke Gmail access by visiting <a href="https://myaccount.google.com/permissions" target="_blank">Google Account Permissions</a> and removing The Digestino.</li>
+      <li>Request deletion of your account and all stored data by emailing us.</li>
+      <li>Export or review your data by contacting us.</li>
+    </ul>
+
+    <h2>7. Children's Privacy</h2>
+    <p>The Digestino is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
+
+    <h2>8. Changes to This Policy</h2>
+    <p>We may update this policy from time to time. The "last updated" date at the top of this page will reflect any changes. Continued use of the service after changes constitutes acceptance of the updated policy.</p>
+
+    <h2>9. Contact</h2>
+    <p>If you have questions about this privacy policy or want to request data deletion, please contact us at: <a href="mailto:${contactEmail}">${contactEmail}</a></p>
+  `));
+});
+
+app.get('/terms', (req, res) => {
+  const lastUpdated = 'April 22, 2026';
+  const contactEmail = 'juanmozosn19@gmail.com';
+
+  res.send(legalPage('Terms of Service', `
+    <h1>Terms of Service</h1>
+    <p class="updated">Last updated: ${lastUpdated}</p>
+
+    <p>By using The Digestino, you agree to these terms. Please read them carefully.</p>
+
+    <h2>1. The Service</h2>
+    <p>The Digestino is an AI-powered newsletter aggregation service. It connects to your Gmail inbox, reads newsletter emails from sources you choose, and generates a curated daily digest.</p>
+
+    <h2>2. Your Account</h2>
+    <p>You are responsible for maintaining the security of your account. The service is currently invite-only. You must not share your account with others or attempt to circumvent the invite system.</p>
+
+    <h2>3. Acceptable Use</h2>
+    <p>You agree to use The Digestino only for its intended purpose of aggregating your own newsletter subscriptions. You must not attempt to access other users' data or interfere with the service.</p>
+
+    <h2>4. Gmail Access</h2>
+    <p>By connecting your Gmail account, you authorize The Digestino to read (but not modify or delete) emails from newsletter sources you have added. You can revoke this access at any time via <a href="https://myaccount.google.com/permissions" target="_blank">Google Account Permissions</a>.</p>
+
+    <h2>5. Disclaimer</h2>
+    <p>The Digestino is provided "as is" without warranties of any kind. Digest content is AI-generated and may contain inaccuracies. We are not responsible for the content of third-party newsletters.</p>
+
+    <h2>6. Contact</h2>
+    <p>For questions about these terms, contact us at: <a href="mailto:${contactEmail}">${contactEmail}</a></p>
+  `));
+});
+
 // Also support GET for backward compat / simple redirects
 app.get('/auth/google', (req, res) => {
   const url = getAuthUrl(JSON.stringify({ inviteCode: '' }));

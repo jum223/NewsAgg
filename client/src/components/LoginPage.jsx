@@ -141,6 +141,11 @@ export default function LoginPage({ authError }) {
 
         <div className="login-footer">
           <p>The Digestino connects to your Gmail, reads newsletters from sources you choose, and uses AI to curate a single daily digest — no noise, just the stories that matter.</p>
+          <p className="login-legal-links">
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            {' · '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+          </p>
         </div>
       </div>
     </div>

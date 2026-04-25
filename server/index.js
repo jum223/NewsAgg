@@ -200,6 +200,17 @@ app.get('/terms', (req, res) => {
   `));
 });
 
+// ─── Google Search Console domain verification ──────────────────
+// Replace GOOGLE_SITE_VERIFICATION env var with the filename Google gives you
+// e.g. if filename is "google1234abcd.html", set GOOGLE_SITE_VERIFICATION=google1234abcd
+const GSC_TOKEN = process.env.GOOGLE_SITE_VERIFICATION;
+if (GSC_TOKEN) {
+  app.get(`/${GSC_TOKEN}.html`, (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`google-site-verification: ${GSC_TOKEN}.html`);
+  });
+}
+
 // Also support GET for backward compat / simple redirects
 app.get('/auth/google', (req, res) => {
   const url = getAuthUrl(JSON.stringify({ inviteCode: '' }));

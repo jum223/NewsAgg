@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Save, CheckCircle, LogOut, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Clock, Save, CheckCircle, LogOut, Sparkles, AlertTriangle, RefreshCw, Mail, WifiOff } from 'lucide-react';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
@@ -14,6 +14,10 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [emailUnsubscribed, setEmailUnsubscribed] = useState(!!user.email_unsubscribed);
+  const [togglingEmail, setTogglingEmail] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
 
   const handleReconnectGmail = async () => {
     setReconnecting(true);
@@ -54,6 +58,46 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
       setSaving(false);
     }
   };
+
+  const handleToggleEmail = async () => {
+    setTogglingEmail(true);
+    try {
+      const newVal = !emailUnsubscribed;
+      const res = await fetch(`${API}/api/settings/unsubscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ unsubscribed: newVal }),
+      });
+      if (res.ok) {
+        setEmailUnsubscribed(newVal);
+        onUserUpdate({ email_unsubscribed: newVal });
+      }
+    } catch (err) {
+      console.error('Email toggle error:', err);
+    } finally {
+      setTogglingEmail(false);
+    }
+  };
+
+  const handleDisconnectGmail = async () => {
+    setDisconnecting(true);
+    try {
+      const res = await fetch(`${API}/api/settings/disconnect-gmail`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        onUserUpdate({ gmail_connected: false, gmail_token_invalid: false });
+        setDisconnectConfirm(false);
+      }
+    } catch (err) {
+      console.error('Disconnect error:', err);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const gmailConnected = user.gmail_connected && !user.gmail_token_invalid;
 
   return (
     <div className="settings-page">
@@ -117,6 +161,34 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
         </button>
       </div>
 
+      {/* Email Notifications */}
+      <div className="settings-section">
+        <h3 className="settings-section-title">
+          <Mail size={18} />
+          Email Notifications
+        </h3>
+        <p className="settings-desc">
+          Control whether you receive your daily digest by email. You can always read it in the app regardless.
+        </p>
+        <div className="settings-toggle-row">
+          <div>
+            <div className="settings-toggle-label">Daily digest emails</div>
+            <div className="settings-toggle-sub">
+              {emailUnsubscribed ? 'Emails are paused — digest is still generated in the app.' : 'You receive an email each day at your scheduled time.'}
+            </div>
+          </div>
+          <button
+            className={`settings-toggle-switch ${emailUnsubscribed ? '' : 'on'}`}
+            onClick={handleToggleEmail}
+            disabled={togglingEmail}
+            aria-label="Toggle email notifications"
+          >
+            <span className="settings-toggle-knob" />
+          </button>
+        </div>
+      </div>
+
+      {/* Account */}
       <div className="settings-section">
         <h3 className="settings-section-title">Account</h3>
         <div className="settings-account-card">
@@ -153,6 +225,40 @@ export default function SettingsPage({ user, token, onUserUpdate, onLogout }) {
               <RefreshCw size={15} className={reconnecting ? 'spin' : ''} />
               {reconnecting ? 'Redirecting...' : 'Reconnect Gmail'}
             </button>
+          </div>
+        )}
+
+        {gmailConnected && (
+          <div style={{ marginTop: 16 }}>
+            {!disconnectConfirm ? (
+              <button
+                className="btn btn-secondary-danger"
+                onClick={() => setDisconnectConfirm(true)}
+              >
+                <WifiOff size={15} />
+                Disconnect Gmail
+              </button>
+            ) : (
+              <div className="disconnect-confirm">
+                <p>This will revoke the app's access to your Gmail. Your digest will stop working until you reconnect. Are you sure?</p>
+                <div className="disconnect-confirm-actions">
+                  <button
+                    className="btn btn-danger"
+                    onClick={handleDisconnectGmail}
+                    disabled={disconnecting}
+                  >
+                    {disconnecting ? 'Disconnecting...' : 'Yes, disconnect'}
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setDisconnectConfirm(false)}
+                    disabled={disconnecting}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

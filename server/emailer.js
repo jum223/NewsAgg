@@ -71,12 +71,13 @@ function buildRatingLinks(story, userId, digestId, appUrl) {
   };
 }
 
-function buildEmailHtml(digest, appUrl, userId) {
+function buildEmailHtml(digest, appUrl, userId, unsubscribeToken) {
   const { topStories = [], quickHits = [], visuals = [], digestSummary, sourcesUsed = [], date, flavor } = digest;
   const digestId = digest.id || '';
   const formattedDate = formatEmailDate(date);
   const viewUrl = appUrl || 'https://newsagg-production.up.railway.app';
   const f = FLAVOR_EMAIL[flavor] || FLAVOR_EMAIL.digestino;
+  const unsubscribeUrl = unsubscribeToken ? `${viewUrl}/unsubscribe?token=${unsubscribeToken}` : null;
 
   const storiesHtml = topStories.map(story => {
     const emoji = categoryEmoji[story.category] || '📰';
@@ -249,6 +250,10 @@ function buildEmailHtml(digest, appUrl, userId) {
               <div style="font-size:12px; color:#9a9a9a; line-height:1.6;">
                 ${f.name} · ${f.tagline}
               </div>
+              ${unsubscribeUrl ? `
+              <div style="margin-top:12px; font-size:11px; color:#b0a99f;">
+                <a href="${unsubscribeUrl}" style="color:#b0a99f; text-decoration:underline;">Unsubscribe from ${f.name}</a>
+              </div>` : ''}
             </td>
           </tr>
 
@@ -276,7 +281,7 @@ function escapeHtml(str) {
  * @param {string} recipientEmail — the user's email address
  * @param {number} userId — the user's DB id (for rating links)
  */
-async function sendDigestEmail(digest, recipientEmail, userId) {
+async function sendDigestEmail(digest, recipientEmail, userId, unsubscribeToken) {
   if (!process.env.RESEND_API_KEY) {
     console.log('Email skipped: RESEND_API_KEY not set');
     return;
@@ -288,7 +293,7 @@ async function sendDigestEmail(digest, recipientEmail, userId) {
   }
 
   const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
-  const html = buildEmailHtml(digest, appUrl, userId);
+  const html = buildEmailHtml(digest, appUrl, userId, unsubscribeToken);
   const dateLabel = formatEmailDate(digest.date);
   const f = FLAVOR_EMAIL[digest.flavor] || FLAVOR_EMAIL.digestino;
   const fromDefault = `${f.name} <onboarding@resend.dev>`;
@@ -306,10 +311,11 @@ async function sendDigestEmail(digest, recipientEmail, userId) {
   }
 }
 
-function buildWeeklyEmailHtml(digest, appUrl) {
+function buildWeeklyEmailHtml(digest, appUrl, unsubscribeToken) {
   const { weekOf, weekSummary, topStories = [], flavor } = digest;
   const viewUrl = appUrl || 'https://newsagg-production.up.railway.app';
   const f = FLAVOR_EMAIL[flavor] || FLAVOR_EMAIL.digestino;
+  const unsubscribeUrl = unsubscribeToken ? `${viewUrl}/unsubscribe?token=${unsubscribeToken}` : null;
 
   const rankEmoji = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
@@ -387,6 +393,10 @@ function buildWeeklyEmailHtml(digest, appUrl) {
               <div style="font-size:12px; color:#9a9a9a; line-height:1.6;">
                 ${f.name} · Week in Review · Every Sunday at 9 AM ET
               </div>
+              ${unsubscribeUrl ? `
+              <div style="margin-top:12px; font-size:11px; color:#b0a99f;">
+                <a href="${unsubscribeUrl}" style="color:#b0a99f; text-decoration:underline;">Unsubscribe from ${f.name}</a>
+              </div>` : ''}
             </td>
           </tr>
 
@@ -403,7 +413,7 @@ function buildWeeklyEmailHtml(digest, appUrl) {
  * @param {object} digest — the weekly digest content
  * @param {string} recipientEmail — the user's email address
  */
-async function sendWeeklyDigestEmail(digest, recipientEmail) {
+async function sendWeeklyDigestEmail(digest, recipientEmail, unsubscribeToken) {
   if (!process.env.RESEND_API_KEY) {
     console.log('Weekly email skipped: RESEND_API_KEY not set');
     return;
@@ -414,7 +424,7 @@ async function sendWeeklyDigestEmail(digest, recipientEmail) {
     return;
   }
   const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
-  const html = buildWeeklyEmailHtml(digest, appUrl);
+  const html = buildWeeklyEmailHtml(digest, appUrl, unsubscribeToken);
   const fw = FLAVOR_EMAIL[digest.flavor] || FLAVOR_EMAIL.digestino;
   const fromDefaultWeekly = `${fw.name} <onboarding@resend.dev>`;
   try {

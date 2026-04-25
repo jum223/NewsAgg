@@ -149,10 +149,12 @@ db.exec(`
 // simulated via try/catch since SQLite has no IF NOT EXISTS for columns.
 
 const columnMigrations = [
-  { table: 'users',         column: 'flavor',              sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
-  { table: 'sources',       column: 'min_stories',         sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
-  { table: 'story_ratings', column: 'story_headline',      sql: "ALTER TABLE story_ratings ADD COLUMN story_headline TEXT DEFAULT NULL" },
-  { table: 'users',         column: 'gmail_token_invalid', sql: "ALTER TABLE users ADD COLUMN gmail_token_invalid INTEGER DEFAULT 0" },
+  { table: 'users',         column: 'flavor',               sql: "ALTER TABLE users ADD COLUMN flavor TEXT DEFAULT NULL" },
+  { table: 'sources',       column: 'min_stories',          sql: "ALTER TABLE sources ADD COLUMN min_stories INTEGER DEFAULT 0" },
+  { table: 'story_ratings', column: 'story_headline',       sql: "ALTER TABLE story_ratings ADD COLUMN story_headline TEXT DEFAULT NULL" },
+  { table: 'users',         column: 'gmail_token_invalid',  sql: "ALTER TABLE users ADD COLUMN gmail_token_invalid INTEGER DEFAULT 0" },
+  { table: 'users',         column: 'email_unsubscribed',   sql: "ALTER TABLE users ADD COLUMN email_unsubscribed INTEGER DEFAULT 0" },
+  { table: 'users',         column: 'unsubscribe_token',    sql: "ALTER TABLE users ADD COLUMN unsubscribe_token TEXT DEFAULT NULL" },
 ];
 
 for (const { table, column, sql } of columnMigrations) {
@@ -189,7 +191,7 @@ function createUser({ googleId, email, name, avatarUrl, isAdmin = false, flavor 
 }
 
 function updateUser(id, fields) {
-  const allowed = ['name', 'avatar_url', 'daily_cron_hour', 'flavor', 'gmail_token_invalid'];
+  const allowed = ['name', 'avatar_url', 'daily_cron_hour', 'flavor', 'gmail_token_invalid', 'email_unsubscribed'];
   const updates = [];
   const values = [];
   for (const key of allowed) {
@@ -408,6 +410,33 @@ function getRatingByStory(userId, storyId) {
   ).get(userId, storyId);
 }
 
+// ─── Unsubscribe token ────────────────────────────────────────
+
+/**
+ * Returns the user's unsubscribe token, generating and saving one if needed.
+ */
+function getOrCreateUnsubscribeToken(userId) {
+  const user = db.prepare('SELECT unsubscribe_token FROM users WHERE id = ?').get(userId);
+  if (user?.unsubscribe_token) return user.unsubscribe_token;
+  const token = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE users SET unsubscribe_token = ? WHERE id = ?').run(token, userId);
+  return token;
+}
+
+function getUserByUnsubscribeToken(token) {
+  return db.prepare('SELECT * FROM users WHERE unsubscribe_token = ?').get(token);
+}
+
+// ─── Gmail disconnect ─────────────────────────────────────────
+
+/**
+ * Remove stored OAuth tokens so the app can no longer access Gmail.
+ */
+function disconnectGmail(userId) {
+  db.prepare('DELETE FROM tokens WHERE user_id = ?').run(userId);
+  db.prepare('UPDATE users SET gmail_token_invalid = 0 WHERE id = ?').run(userId);
+}
+
 module.exports = {
   // Users
   findUserByGoogleId, findUserByEmail, findUserById,
@@ -426,4 +455,8 @@ module.exports = {
   isMessageFetched, markMessageFetched,
   // Story ratings
   saveRating, getRatingsByDigest, getRatings, getRatingByStory,
+  // Unsubscribe
+  getOrCreateUnsubscribeToken, getUserByUnsubscribeToken,
+  // Gmail disconnect
+  disconnectGmail,
 };

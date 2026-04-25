@@ -301,7 +301,7 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // Get current user info (requires auth)
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  const { id, email, name, avatar_url, daily_cron_hour, is_admin, flavor, created_at, gmail_token_invalid } = req.user;
+  const { id, email, name, avatar_url, daily_cron_hour, is_admin, flavor, created_at, gmail_token_invalid, email_unsubscribed } = req.user;
   const tokens = db.getTokens(id);
   res.json({
     id, email, name, avatar_url, daily_cron_hour,
@@ -310,6 +310,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
     created_at,
     gmail_connected: !!tokens,
     gmail_token_invalid: !!gmail_token_invalid,
+    email_unsubscribed: !!email_unsubscribed,
   });
 });
 
@@ -337,6 +338,67 @@ app.put('/api/settings', requireAuth, (req, res) => {
   }
   const updated = db.updateUser(req.user.id, req.body);
   res.json(updated);
+});
+
+// Toggle email subscription on/off
+app.post('/api/settings/unsubscribe', requireAuth, (req, res) => {
+  const { unsubscribed } = req.body; // true = stop emails, false = resume
+  const updated = db.updateUser(req.user.id, { email_unsubscribed: unsubscribed ? 1 : 0 });
+  res.json({ email_unsubscribed: !!updated.email_unsubscribed });
+});
+
+// Disconnect Gmail — revoke OAuth token + clear from DB
+app.post('/api/settings/disconnect-gmail', requireAuth, async (req, res) => {
+  const tokens = db.getTokens(req.user.id);
+  if (tokens?.access_token) {
+    // Best-effort revoke at Google (don't fail if it errors)
+    try {
+      await fetch(`https://oauth2.googleapis.com/revoke?token=${tokens.access_token}`, { method: 'POST' });
+    } catch (_) {}
+  }
+  db.disconnectGmail(req.user.id);
+  res.json({ gmail_connected: false });
+});
+
+// Unauthenticated unsubscribe link (from email footer)
+app.get('/unsubscribe', (req, res) => {
+  const { token } = req.query;
+  const appUrl = process.env.APP_URL || 'https://newsagg-production.up.railway.app';
+  if (!token) return res.status(400).send('Invalid unsubscribe link.');
+
+  const user = db.getUserByUnsubscribeToken(token);
+  if (!user) return res.status(404).send('Unsubscribe link not found.');
+
+  db.updateUser(user.id, { email_unsubscribed: 1 });
+  const f = user.flavor === 'digestina' ? 'The Digestina' : 'The Digestino';
+  const brand = user.flavor === 'digestina' ? '#be185d' : '#c2410c';
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unsubscribed</title>
+  <style>
+    body { margin:0; padding:0; background:#faf9f7; font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .card { background:#fff; border:1px solid #e8e5e0; border-radius:16px; padding:48px 40px; max-width:440px; text-align:center; }
+    .icon { font-size:40px; margin-bottom:16px; }
+    h1 { font-size:22px; font-weight:700; color:#1a1a1a; margin:0 0 12px; }
+    p { font-size:15px; color:#6b6b6b; line-height:1.6; margin:0 0 24px; }
+    a { display:inline-block; padding:12px 28px; background:${brand}; color:#fff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:600; }
+    .note { font-size:12px; color:#9a9a9a; margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>You're unsubscribed</h1>
+    <p>You won't receive daily emails from ${f} anymore. You can still log in to read your digest anytime.</p>
+    <a href="${appUrl}">Go to ${f}</a>
+    <p class="note">Changed your mind? Re-enable emails in Settings.</p>
+  </div>
+</body>
+</html>`);
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -424,8 +486,11 @@ app.post('/api/newsletters/fetch', requireAuth, async (req, res) => {
     const savedDigest = db.saveDigest(userId, digest);
     // Attach the DB id so rating links work
     const digestWithId = { ...digest, id: savedDigest?.id };
-    // Send email in background
-    sendDigestEmail(digestWithId, req.user.email, userId).catch(err => console.error('Email error:', err));
+    // Send email in background (unless user has unsubscribed)
+    if (!req.user.email_unsubscribed) {
+      const unsubToken = db.getOrCreateUnsubscribeToken(userId);
+      sendDigestEmail(digestWithId, req.user.email, userId, unsubToken).catch(err => console.error('Email error:', err));
+    }
     res.json({ message: 'Newsletter curated successfully', digest });
   } catch (err) {
     console.error('Fetch error:', err);
@@ -638,7 +703,12 @@ cron.schedule('0 * * * *', async () => {
         const digest = await curateNewsletter(rawNewsletters, sources, user.flavor || 'digestino');
         const savedDigest = db.saveDigest(user.id, digest);
         const digestWithId = { ...digest, id: savedDigest?.id };
-        await sendDigestEmail(digestWithId, user.email, user.id);
+        if (!user.email_unsubscribed) {
+          const unsubToken = db.getOrCreateUnsubscribeToken(user.id);
+          await sendDigestEmail(digestWithId, user.email, user.id, unsubToken);
+        } else {
+          console.log(`[Cron] Email skipped for ${user.email} (unsubscribed)`);
+        }
         console.log(`[Cron] Daily digest created for ${user.email}`);
       }
     } catch (err) {
@@ -668,7 +738,12 @@ cron.schedule('0 9 * * 0', async () => {
       const result = await curateWeeklyDigest(dailyDigests, user.flavor || 'digestino');
       if (result) {
         db.saveWeeklyDigest(user.id, result.weekStart, result.weekEnd, result.digest);
-        await sendWeeklyDigestEmail(result.digest, user.email);
+        if (!user.email_unsubscribed) {
+          const unsubToken = db.getOrCreateUnsubscribeToken(user.id);
+          await sendWeeklyDigestEmail(result.digest, user.email, unsubToken);
+        } else {
+          console.log(`[Cron] Weekly email skipped for ${user.email} (unsubscribed)`);
+        }
         console.log(`[Cron] Weekly digest created for ${user.email}`);
       }
     } catch (err) {

@@ -251,8 +251,16 @@ function buildEmailHtml(digest, appUrl, userId, unsubscribeToken) {
                 ${f.name} · ${f.tagline}
               </div>
               ${unsubscribeUrl ? `
-              <div style="margin-top:12px; font-size:11px; color:#b0a99f;">
-                <a href="${unsubscribeUrl}" style="color:#b0a99f; text-decoration:underline;">Unsubscribe from ${f.name}</a>
+              <div style="margin-top:28px; padding-top:20px; border-top:1px solid #ede9e4;">
+                <div style="font-size:13px; color:#9a9a9a; margin-bottom:10px; font-style:italic;">
+                  Inbox feeling cluttered? We get it — that's literally why we exist.
+                </div>
+                <a href="${unsubscribeUrl}" style="display:inline-block; padding:8px 20px; border:1px solid #d1cdc7; border-radius:20px; font-size:13px; font-weight:600; color:#6b6b6b; text-decoration:none; background:#f5f3f0;">
+                  Stop sending me emails
+                </a>
+                <div style="font-size:11px; color:#b0a99f; margin-top:8px;">
+                  You can still read your digest in the app anytime.
+                </div>
               </div>` : ''}
             </td>
           </tr>
@@ -394,8 +402,16 @@ function buildWeeklyEmailHtml(digest, appUrl, unsubscribeToken) {
                 ${f.name} · Week in Review · Every Sunday at 9 AM ET
               </div>
               ${unsubscribeUrl ? `
-              <div style="margin-top:12px; font-size:11px; color:#b0a99f;">
-                <a href="${unsubscribeUrl}" style="color:#b0a99f; text-decoration:underline;">Unsubscribe from ${f.name}</a>
+              <div style="margin-top:28px; padding-top:20px; border-top:1px solid #ede9e4;">
+                <div style="font-size:13px; color:#9a9a9a; margin-bottom:10px; font-style:italic;">
+                  Inbox feeling cluttered? We get it — that's literally why we exist.
+                </div>
+                <a href="${unsubscribeUrl}" style="display:inline-block; padding:8px 20px; border:1px solid #d1cdc7; border-radius:20px; font-size:13px; font-weight:600; color:#6b6b6b; text-decoration:none; background:#f5f3f0;">
+                  Stop sending me emails
+                </a>
+                <div style="font-size:11px; color:#b0a99f; margin-top:8px;">
+                  You can still read your digest in the app anytime.
+                </div>
               </div>` : ''}
             </td>
           </tr>

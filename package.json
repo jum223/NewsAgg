@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "AI-powered newsletter aggregator that curates your daily digest",
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   },
   "scripts": {
     "server": "node server/index.js",

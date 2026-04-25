@@ -313,7 +313,11 @@ async function sendDigestEmail(digest, recipientEmail, userId, unsubscribeToken)
       subject: `${f.name} — ${dateLabel}`,
       html,
     });
-    console.log(`Digest email sent to ${toEmail}:`, result.data?.id || 'ok');
+    if (result.error) {
+      console.error(`Failed to send digest email to ${toEmail}: [${result.error.name}] ${result.error.message}`);
+    } else {
+      console.log(`Digest email sent to ${toEmail}: ${result.data?.id}`);
+    }
   } catch (err) {
     console.error('Failed to send digest email:', err.message);
   }
@@ -450,7 +454,11 @@ async function sendWeeklyDigestEmail(digest, recipientEmail, unsubscribeToken) {
       subject: `${fw.name} — Week in Review — ${digest.weekOf || 'This Week'}`,
       html,
     });
-    console.log(`Weekly digest email sent to ${toEmail}:`, result.data?.id || 'ok');
+    if (result.error) {
+      console.error(`Failed to send weekly email to ${toEmail}: [${result.error.name}] ${result.error.message}`);
+    } else {
+      console.log(`Weekly digest email sent to ${toEmail}: ${result.data?.id}`);
+    }
   } catch (err) {
     console.error('Failed to send weekly digest email:', err.message);
   }
